@@ -1,0 +1,2252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panorama Expenses</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ══ CSS VARIABLES ══ */
+:root {
+  --bg:        #080c14;
+  --surface:   #0f1623;
+  --surface2:  #131c2e;
+  --surface3:  #1a2340;
+  --border:    rgba(255,255,255,.07);
+  --border2:   rgba(255,255,255,.12);
+  --text:      #e2e8f0;
+  --text2:     #94a3b8;
+  --text3:     #64748b;
+  --blue:      #3b82f6;
+  --blue-glow: rgba(59,130,246,.35);
+  --purple:    #a855f7;
+  --purple-glow:rgba(168,85,247,.35);
+  --green:     #10b981;
+  --green-glow:rgba(16,185,129,.35);
+  --amber:     #f59e0b;
+  --red:       #ef4444;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse at 20% 0%,   rgba(59,130,246,.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 10%,  rgba(168,85,247,.10) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(16,185,129,.07) 0%, transparent 45%);
+  background-attachment: fixed;
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ══ DOT GRID ══ */
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:-1;
+  background-image: radial-gradient(circle, rgba(148,163,184,.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ══ NAV ══ */
+nav {
+  background: rgba(8,12,20,.93);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex; align-items: stretch; padding: 0 24px;
+  box-shadow: 0 1px 0 var(--border2), 0 8px 32px rgba(0,0,0,.55);
+  position: sticky; top: 0; z-index: 50;
+  border-bottom: 1px solid var(--border);
+}
+.nav-brand { display:flex; align-items:center; gap:10px; padding-right:22px; margin-right:8px; border-right:1px solid var(--border); }
+.nav-brand-icon { width:30px; height:30px; background:linear-gradient(135deg,#3b82f6,#8b5cf6); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:.95rem; flex-shrink:0; box-shadow:0 0 14px rgba(99,102,241,.5); }
+.nav-brand h1 { font-size:.95rem; font-weight:800; letter-spacing:-.3px; }
+.nav-brand h1 .brand-main { color:white; }
+.nav-brand h1 .brand-sub { background:linear-gradient(90deg,#60a5fa,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.tab-btn { padding:0 15px; height:56px; font-size:.8rem; color:var(--text3); border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; transition:color .15s,border-color .15s; font-weight:600; white-space:nowrap; letter-spacing:.15px; }
+.tab-btn:hover { color:var(--text); }
+.tab-btn.active { color:white; border-bottom-color:var(--blue); }
+.tab-btn.t-settings { margin-left:auto; }
+
+/* ══ LAYOUT ══ */
+main { max-width:1320px; margin:0 auto; padding:24px 24px; }
+.section { display:none; }
+.section.active { display:block; }
+.card {
+  background: var(--surface);
+  border-radius:18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 24px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.04);
+  padding:22px 24px; margin-bottom:18px;
+}
+
+/* ══ DASHBOARD HEADER ══ */
+.dash-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px; }
+.dash-greeting { font-size:1.55rem; font-weight:900; color:white; letter-spacing:-.5px; line-height:1.1; }
+.dash-greeting span { background:linear-gradient(120deg,#60a5fa,#c084fc); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.dash-meta { text-align:right; }
+.dash-date { font-size:.82rem; color:var(--text2); font-weight:500; }
+.dash-count { font-size:.72rem; color:var(--text3); margin-top:2px; }
+
+/* ══ DASHBOARD POSITION CARDS ══ */
+.pos-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:8px; }
+@media(max-width:700px) { .pos-grid-3 { grid-template-columns:1fr; } }
+.pos-card {
+  border-radius:20px; padding:26px 28px; color:white;
+  position:relative; overflow:hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+  cursor:default;
+}
+.pos-card:hover { transform:translateY(-4px); }
+.pos-card::before {
+  content:''; position:absolute; top:-40%; right:-20%;
+  width:220px; height:220px;
+  background:radial-gradient(circle, rgba(255,255,255,.1) 0%, transparent 70%);
+  pointer-events:none;
+}
+.pos-card::after {
+  content:''; position:absolute; bottom:-30%; left:-10%;
+  width:160px; height:160px;
+  background:radial-gradient(circle, rgba(255,255,255,.05) 0%, transparent 70%);
+  pointer-events:none;
+}
+.pos-card.c-andrew {
+  background: linear-gradient(135deg, #0d1e52 0%, #1a3a8f 50%, #1e4db8 100%);
+  box-shadow: 0 8px 40px rgba(30,77,184,.5), inset 0 1px 0 rgba(255,255,255,.1), 0 0 0 1px rgba(59,130,246,.2);
+}
+.pos-card.c-andrew:hover { box-shadow: 0 16px 56px rgba(30,77,184,.65), inset 0 1px 0 rgba(255,255,255,.12), 0 0 0 1px rgba(59,130,246,.3); }
+.pos-card.c-gloria {
+  background: linear-gradient(135deg, #1e0d4e 0%, #4c1b8f 50%, #6d28d9 100%);
+  box-shadow: 0 8px 40px rgba(109,40,217,.5), inset 0 1px 0 rgba(255,255,255,.1), 0 0 0 1px rgba(168,85,247,.2);
+}
+.pos-card.c-gloria:hover { box-shadow: 0 16px 56px rgba(109,40,217,.65), inset 0 1px 0 rgba(255,255,255,.12), 0 0 0 1px rgba(168,85,247,.3); }
+.pos-card.c-settle {
+  background: linear-gradient(135deg, #072719 0%, #0d5c35 50%, #047857 100%);
+  box-shadow: 0 8px 40px rgba(4,120,87,.5), inset 0 1px 0 rgba(255,255,255,.1), 0 0 0 1px rgba(16,185,129,.2);
+}
+.pos-card.c-settle:hover { box-shadow: 0 16px 56px rgba(4,120,87,.65), inset 0 1px 0 rgba(255,255,255,.12), 0 0 0 1px rgba(16,185,129,.3); }
+.pc-lbl { font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:1.4px; opacity:.6; margin-bottom:12px; }
+.pc-amt { font-size:2.15rem; font-weight:900; line-height:1; letter-spacing:-1px; text-shadow:0 2px 14px rgba(0,0,0,.4); }
+.pc-sub { font-size:.68rem; opacity:.5; margin-top:8px; letter-spacing:.3px; }
+.pc-monogram {
+  width:48px; height:48px; border-radius:50%;
+  background:rgba(255,255,255,.12); backdrop-filter:blur(6px);
+  border:2px solid rgba(255,255,255,.2);
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.2rem; font-weight:900; margin-bottom:14px;
+  color:white; letter-spacing:-.5px;
+}
+
+/* ══ BOC BALANCE CARDS ══ */
+.boc-bal-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+@media(max-width:800px) { .boc-bal-grid { grid-template-columns:1fr 1fr; } }
+.boc-bal-card {
+  border-radius:16px; padding:16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  transition:transform .15s, box-shadow .15s;
+}
+.boc-bal-card:hover { transform:translateY(-2px); box-shadow:0 6px 24px rgba(0,0,0,.45); }
+.bbc-lbl { font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.9px; color:var(--text3); margin-bottom:7px; }
+.bbc-amt { font-size:1.35rem; font-weight:800; letter-spacing:-.3px; }
+.bbc-amt.pos { color:#34d399; }
+.bbc-amt.neg { color:#f87171; }
+.bbc-amt.blue { color:#60a5fa; }
+.bbc-sub { font-size:.67rem; color:var(--text3); margin-top:4px; }
+
+/* ══ FILTER BAR ══ */
+.fbar {
+  display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;
+  margin-bottom:16px; padding:14px 16px;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:14px;
+}
+.fbar-group { display:flex; flex-direction:column; gap:5px; }
+.fbar-group label { font-size:.64rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; }
+.fbar-group select, .fbar-group input[type=date] {
+  padding:7px 11px; border:1.5px solid var(--border2); border-radius:9px;
+  font-size:.82rem; color:var(--text); background:var(--surface3); min-width:140px;
+  font-family:inherit; color-scheme:dark;
+}
+.fbar-group select:focus, .fbar-group input:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(59,130,246,.15); }
+.fbar-actions { display:flex; gap:6px; align-items:flex-end; margin-left:auto; }
+.clear-btn { padding:7px 14px; border:1.5px solid var(--border2); background:var(--surface3); border-radius:9px; font-size:.78rem; color:var(--text2); cursor:pointer; font-weight:600; font-family:inherit; transition:background .12s; }
+.clear-btn:hover { background:var(--surface); }
+.custom-range { display:none; }
+.custom-range.show { display:flex; gap:6px; align-items:flex-end; }
+
+/* ══ TABLE HEADER ══ */
+.tbl-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+.tbl-header h2 { font-size:1rem; font-weight:800; color:white; letter-spacing:-.2px; }
+.add-btn {
+  background:linear-gradient(135deg,#2563eb,#3b82f6); color:white; border:none;
+  border-radius:10px; padding:9px 18px; font-size:.82rem; font-weight:700;
+  cursor:pointer; font-family:inherit; letter-spacing:.1px;
+  box-shadow:0 2px 12px var(--blue-glow); transition:transform .1s,box-shadow .1s;
+}
+.add-btn:hover { transform:translateY(-1px); box-shadow:0 4px 20px rgba(59,130,246,.55); }
+.add-btn:active { transform:translateY(0); }
+
+/* ══ SUMMARY BAR ══ */
+.summary-bar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.s-item {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:12px; padding:11px 16px; min-width:100px; flex:1;
+}
+.s-lbl { font-size:.62rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:3px; }
+.s-val { font-size:.94rem; font-weight:800; color:white; letter-spacing:-.2px; }
+
+/* ══ TABLE ══ */
+.tbl-wrap { overflow-x:auto; margin:-2px; padding:2px; }
+table { width:100%; border-collapse:collapse; font-size:.83rem; }
+th {
+  text-align:left; padding:10px 14px;
+  background:rgba(255,255,255,.03);
+  color:var(--text3); font-weight:700; font-size:.67rem; text-transform:uppercase;
+  letter-spacing:.6px; border-bottom:1px solid var(--border2); white-space:nowrap;
+}
+td { padding:11px 14px; border-bottom:1px solid rgba(255,255,255,.04); color:var(--text2); }
+tr:last-child td { border-bottom:none; }
+tbody tr:hover td { background:rgba(59,130,246,.06); }
+.ap { color:#34d399; font-weight:700; }
+.an { color:#f87171; font-weight:700; }
+.ab { color:#60a5fa; font-weight:700; }
+.an-b { color:#c084fc; font-weight:700; }
+.badge { display:inline-block; padding:3px 9px; border-radius:20px; font-size:.68rem; font-weight:700; letter-spacing:.1px; }
+.b-a { background:rgba(59,130,246,.18); color:#93c5fd; }
+.b-g { background:rgba(168,85,247,.18); color:#d8b4fe; }
+.b-b { background:rgba(148,163,184,.12); color:#94a3b8; }
+.b-h { background:rgba(16,185,129,.15); color:#6ee7b7; }
+.b-s { background:rgba(14,165,233,.15); color:#7dd3fc; }
+
+/* ══ EMPTY ══ */
+.empty { text-align:center; padding:48px 20px; color:var(--text3); }
+.empty .ei { font-size:2.5rem; margin-bottom:10px; }
+.empty p { font-size:.88rem; }
+
+/* ══ HELPER BOX ══ */
+.helper-box {
+  background:rgba(16,185,129,.07); border:1px solid rgba(16,185,129,.2);
+  border-radius:14px; padding:14px 20px; margin-bottom:16px;
+  display:flex; gap:28px; flex-wrap:wrap;
+}
+.hb-lbl { font-size:.63rem; font-weight:700; color:#34d399; text-transform:uppercase; letter-spacing:.9px; margin-bottom:3px; }
+.hb-val { font-size:1.3rem; font-weight:900; color:#6ee7b7; letter-spacing:-.3px; }
+
+/* ══ DELETE ══ */
+.del-btn { background:none; border:none; color:var(--text3); cursor:pointer; padding:3px 6px; border-radius:50%; font-size:.68rem; transition:background .1s,color .1s; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; }
+.del-btn:hover { background:rgba(239,68,68,.15); color:#f87171; }
+
+/* ══ CHARTS ══ */
+.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+@media(max-width:800px) { .charts-grid { grid-template-columns:1fr; } }
+.chart-title { font-size:.72rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:14px; }
+.chart-bar-row { display:flex; align-items:center; gap:9px; margin-bottom:8px; }
+.cbl { width:160px; font-size:.74rem; color:var(--text3); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; }
+.cbt { flex:1; background:rgba(255,255,255,.06); border-radius:6px; height:18px; overflow:hidden; }
+.cbf { height:100%; border-radius:6px; transition:width .5s cubic-bezier(.4,0,.2,1); }
+.cbv { width:110px; font-size:.75rem; font-weight:700; color:var(--text); flex-shrink:0; }
+.chart-empty { color:var(--text3); font-size:.82rem; text-align:center; padding:24px; }
+
+/* ══ MODAL ══ */
+.modal-overlay {
+  display:none; position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,.75); backdrop-filter:blur(8px);
+  align-items:center; justify-content:center; padding:20px;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius:22px; padding:28px 28px; width:100%;
+  max-width:480px; max-height:92vh; overflow-y:auto;
+  box-shadow: 0 32px 100px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.06);
+  animation:mi .18s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes mi { from{opacity:0;transform:translateY(12px) scale(.95)} to{opacity:1;transform:none} }
+.modal h3 { font-size:1.05rem; font-weight:800; color:white; margin-bottom:20px; letter-spacing:-.2px; }
+.form-row { margin-bottom:14px; }
+.form-row > label { display:block; font-size:.66rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:5px; }
+.form-row input[type=text], .form-row input[type=number], .form-row input[type=date], .form-row select {
+  width:100%; padding:10px 13px; border:1.5px solid var(--border2); border-radius:11px;
+  font-size:.88rem; color:var(--text); background:var(--surface3); font-family:inherit;
+  transition:border-color .15s, box-shadow .15s; color-scheme:dark;
+}
+.form-row input:focus, .form-row select:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(59,130,246,.18); }
+.fg2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.ah { font-size:.66rem; color:var(--text3); margin-top:4px; }
+.paid-toggle { display:flex; border-radius:11px; overflow:hidden; border:1.5px solid var(--border2); }
+.pt-btn { flex:1; padding:10px 4px; text-align:center; font-size:.82rem; font-weight:700; cursor:pointer; border:none; background:var(--surface3); color:var(--text3); transition:background .12s,color .12s; border-right:1px solid var(--border); font-family:inherit; }
+.pt-btn:last-child { border-right:none; }
+.pt-btn.s-a { background:linear-gradient(135deg,#1d4ed8,#3b82f6); color:white; }
+.pt-btn.s-g { background:linear-gradient(135deg,#7c3aed,#a855f7); color:white; }
+.pt-btn.s-b { background:linear-gradient(135deg,#1e293b,#334155); color:var(--text); }
+.check-row { display:flex; align-items:center; gap:11px; padding:10px 13px; border:1.5px solid var(--border2); border-radius:11px; cursor:pointer; transition:border-color .12s,background .12s; }
+.check-row:hover { border-color:#34d399; background:rgba(16,185,129,.06); }
+.check-row input[type=checkbox] { width:16px; height:16px; cursor:pointer; accent-color:#10b981; flex-shrink:0; }
+.ck-lbl { font-size:.84rem; color:var(--text2); cursor:pointer; user-select:none; }
+.modal-actions { display:flex; gap:10px; margin-top:22px; justify-content:flex-end; }
+.btn-cancel { padding:9px 18px; border:1.5px solid var(--border2); background:var(--surface3); border-radius:10px; font-size:.86rem; cursor:pointer; color:var(--text2); font-family:inherit; font-weight:600; transition:background .12s; }
+.btn-cancel:hover { background:var(--surface); }
+.btn-save { padding:9px 24px; background:linear-gradient(135deg,#2563eb,#3b82f6); color:white; border:none; border-radius:10px; font-size:.86rem; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 2px 12px var(--blue-glow); transition:transform .1s,box-shadow .1s; }
+.btn-save:hover { transform:translateY(-1px); box-shadow:0 4px 20px rgba(59,130,246,.55); }
+
+/* ══ SETTINGS ══ */
+.ss h3 { font-size:.88rem; font-weight:800; color:white; margin-bottom:12px; padding-bottom:9px; border-bottom:1px solid var(--border); letter-spacing:-.1px; }
+.cat-list { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.cat-chip { display:inline-flex; align-items:center; gap:5px; background:var(--surface3); border:1px solid var(--border2); border-radius:20px; padding:4px 12px; font-size:.76rem; color:var(--text2); font-weight:500; }
+.cat-chip button { background:none; border:none; color:var(--text3); cursor:pointer; font-size:.8rem; padding:0 2px; transition:color .1s; }
+.cat-chip button:hover { color:#f87171; }
+.cat-add { display:flex; gap:8px; }
+.cat-add input { flex:1; padding:8px 12px; border:1.5px solid var(--border2); border-radius:10px; font-size:.84rem; font-family:inherit; background:var(--surface3); color:var(--text); transition:border-color .15s; color-scheme:dark; }
+.cat-add input:focus { outline:none; border-color:var(--blue); }
+.cat-add button { padding:8px 16px; background:linear-gradient(135deg,#2563eb,#3b82f6); color:white; border:none; border-radius:10px; font-size:.8rem; font-weight:700; cursor:pointer; font-family:inherit; }
+.warn-box { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.25); border-radius:11px; padding:10px 14px; font-size:.78rem; color:#fcd34d; margin-bottom:14px; }
+.save-ob { background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; border-radius:10px; padding:9px 20px; font-size:.83rem; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 2px 10px var(--blue-glow); }
+
+/* ══ BOC BALANCE ADJUSTER ══ */
+.boc-adj-box { background:rgba(59,130,246,.06); border:1px solid rgba(59,130,246,.2); border-radius:14px; padding:20px 22px; }
+.boc-adj-box .adj-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.boc-adj-box .cur-bal { flex:1; min-width:140px; }
+.boc-adj-box .cur-lbl { font-size:.65rem; font-weight:700; color:#60a5fa; text-transform:uppercase; letter-spacing:.6px; margin-bottom:5px; }
+.boc-adj-box .cur-val { font-size:1.55rem; font-weight:900; color:#93c5fd; letter-spacing:-.5px; }
+.boc-adj-box .arrow { font-size:1.3rem; color:var(--text3); flex-shrink:0; }
+.boc-adj-box .new-bal { flex:1; min-width:160px; }
+.boc-adj-box .new-bal label { display:block; font-size:.65rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:5px; }
+.boc-adj-box .new-bal input { width:100%; padding:10px 13px; border:1.5px solid rgba(59,130,246,.25); border-radius:10px; font-size:1rem; font-weight:700; color:#93c5fd; background:var(--surface3); font-family:inherit; color-scheme:dark; }
+.boc-adj-box .new-bal input:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(59,130,246,.18); }
+.adj-hint { font-size:.71rem; color:#60a5fa; margin-top:10px; opacity:.75; }
+.adj-save-btn { background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; border-radius:10px; padding:10px 22px; font-size:.84rem; font-weight:700; cursor:pointer; flex-shrink:0; font-family:inherit; transition:transform .1s,box-shadow .1s; box-shadow:0 2px 10px var(--blue-glow); }
+.adj-save-btn:hover { transform:translateY(-1px); box-shadow:0 4px 18px rgba(59,130,246,.55); }
+
+/* ══ SETTLE BAR ══ */
+.settle-bar { display:flex; align-items:center; justify-content:center; gap:14px; padding:20px 0 8px; flex-wrap:wrap; }
+.settle-btn {
+  display:inline-flex; align-items:center; gap:10px;
+  background:linear-gradient(135deg,#059669 0%,#10b981 60%,#34d399 100%);
+  color:white; border:none; border-radius:16px; padding:16px 44px;
+  font-size:1.05rem; font-weight:800; cursor:pointer; font-family:inherit;
+  box-shadow: 0 6px 28px var(--green-glow), inset 0 1px 0 rgba(255,255,255,.15);
+  letter-spacing:.2px; transition:transform .15s,box-shadow .15s;
+  position:relative; overflow:hidden;
+}
+.settle-btn::after {
+  content:''; position:absolute; top:0; left:-100%;
+  width:55%; height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);
+  transform:skewX(-18deg); transition:left .5s ease;
+}
+.settle-btn:hover { transform:translateY(-2px); box-shadow:0 10px 36px rgba(16,185,129,.6),inset 0 1px 0 rgba(255,255,255,.15); }
+.settle-btn:hover::after { left:150%; }
+.settle-btn:active { transform:translateY(0); }
+.undo-btn {
+  display:inline-flex; align-items:center; gap:8px; background:rgba(245,158,11,.08);
+  color:#fcd34d; border:1.5px solid rgba(245,158,11,.3); border-radius:14px;
+  padding:13px 24px; font-size:.88rem; font-weight:700; cursor:pointer;
+  font-family:inherit; transition:background .15s,box-shadow .15s;
+  box-shadow:0 2px 10px rgba(245,158,11,.15);
+}
+.undo-btn:hover { background:rgba(245,158,11,.14); box-shadow:0 4px 18px rgba(245,158,11,.25); }
+
+/* ══ SETTLEMENT LOG ══ */
+.slog-empty { text-align:center; color:var(--text3); padding:48px 20px; font-size:.86rem; }
+.slog-card { background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:0 4px 24px rgba(0,0,0,.35); overflow:hidden; }
+.slog-header { padding:22px 24px 16px; border-bottom:1px solid var(--border); }
+.slog-header h2 { font-size:1.05rem; font-weight:800; color:white; letter-spacing:-.2px; }
+.slog-header p { font-size:.74rem; color:var(--text3); margin-top:5px; }
+.slog-tbl-wrap { overflow-x:auto; }
+.slog-tbl { width:100%; border-collapse:collapse; font-size:.84rem; }
+.slog-tbl th { background:rgba(255,255,255,.03); color:var(--text3); font-weight:700; font-size:.66rem; text-transform:uppercase; letter-spacing:.6px; padding:11px 16px; text-align:left; border-bottom:1px solid var(--border2); }
+.slog-tbl td { padding:15px 16px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; color:var(--text2); }
+.slog-tbl tr:last-child td { border-bottom:none; }
+.slog-tbl tbody tr:hover td { background:rgba(59,130,246,.06); }
+.slog-tbl tr.row-undone td { opacity:.35; }
+.badge-settled { background:rgba(16,185,129,.15); color:#6ee7b7; font-size:.68rem; font-weight:800; border-radius:20px; padding:4px 12px; letter-spacing:.1px; border:1px solid rgba(16,185,129,.25); }
+.badge-undone  { background:rgba(245,158,11,.12); color:#fcd34d; font-size:.68rem; font-weight:800; border-radius:20px; padding:4px 12px; letter-spacing:.1px; border:1px solid rgba(245,158,11,.2); }
+.settle-dir { font-size:.82rem; color:var(--text); font-weight:700; line-height:1.5; }
+
+/* ══ BOC POSITION ADJUSTER ROWS ══ */
+.pos-adj-row { display:grid; grid-template-columns:130px 1fr 28px 1fr auto; gap:14px; align-items:center; padding:16px 0; border-bottom:1px solid var(--border); }
+.pos-adj-row:last-child { border-bottom:none; }
+.pa-name { font-size:.83rem; font-weight:700; color:var(--text); }
+.pa-cur .pa-lbl { font-size:.63rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+.pa-cur .pa-val { font-size:1.05rem; font-weight:800; color:white; letter-spacing:-.2px; }
+.pa-arrow { font-size:1.1rem; color:var(--text3); text-align:center; }
+.pa-inp input { width:100%; padding:9px 12px; border:1.5px solid var(--border2); border-radius:10px; font-size:.9rem; font-weight:700; color:white; font-family:inherit; background:var(--surface3); transition:border-color .15s; color-scheme:dark; }
+.pa-inp input:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(59,130,246,.15); }
+.pa-save { background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; border-radius:10px; padding:9px 16px; font-size:.8rem; font-weight:700; cursor:pointer; white-space:nowrap; font-family:inherit; transition:transform .1s,box-shadow .1s; box-shadow:0 2px 8px var(--blue-glow); }
+.pa-save:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(59,130,246,.5); }
+@media(max-width:600px) {
+  .pos-adj-row { grid-template-columns:1fr 1fr; grid-template-rows:auto auto; gap:8px; }
+  .pa-arrow { display:none; }
+  .pa-save { grid-column:1/-1; }
+}
+
+/* ══ MOX DISCOUNT BOX ══ */
+.mox-box { background:rgba(168,85,247,.07); border:1.5px solid rgba(168,85,247,.25); border-radius:13px; padding:14px 16px; margin-top:4px; }
+.mox-header { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+.mox-badge { background:linear-gradient(135deg,#7c3aed,#a855f7); color:white; font-size:.67rem; font-weight:800; border-radius:20px; padding:3px 10px; letter-spacing:.5px; box-shadow:0 2px 8px var(--purple-glow); }
+.mox-title { font-size:.76rem; font-weight:700; color:#c084fc; }
+.mox-row { display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:.82rem; }
+.mox-row .mox-key { color:var(--text3); }
+.mox-row .mox-val { font-weight:600; color:var(--text2); }
+.mox-divider { border:none; border-top:1px dashed rgba(168,85,247,.25); margin:8px 0; }
+.mox-final-row { display:flex; justify-content:space-between; align-items:center; }
+.mox-final-row .mox-key { font-size:.82rem; color:#c084fc; font-weight:700; }
+.mox-final-row .mox-final-val { font-size:1.08rem; font-weight:900; color:#c084fc; letter-spacing:-.2px; }
+
+/* ══ TABLE ROW COLOR CODING ══ */
+tr.tr-a td:first-child { box-shadow:inset 3px 0 0 #3b82f6; }
+tr.tr-g td:first-child { box-shadow:inset 3px 0 0 #a855f7; }
+tr.tr-b td:first-child { box-shadow:inset 3px 0 0 #475569; }
+
+/* ══ BOC BALANCE CARD TOP-BORDERS ══ */
+.boc-bal-card.card-a { border-top:2px solid rgba(59,130,246,.6); }
+.boc-bal-card.card-g { border-top:2px solid rgba(168,85,247,.6); }
+.boc-bal-card.card-i { border-top:2px solid rgba(245,158,11,.6); }
+.boc-bal-card.card-bb { border-top:2px solid rgba(14,165,233,.6); }
+
+/* ══ MISC HELPERS ══ */
+.num { text-align:right !important; font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; letter-spacing:-.1px; }
+.th-r { text-align:right !important; }
+.page-head { margin-bottom:20px; }
+.page-head-title { font-size:1.3rem; font-weight:900; color:white; letter-spacing:-.4px; }
+.page-head-sub { font-size:.78rem; color:var(--text3); margin-top:3px; }
+
+/* ══ THEME TOGGLE ══ */
+.theme-toggle-btn {
+  margin-left:auto; padding:0 14px; height:56px;
+  font-size:.95rem; border:none; background:none; cursor:pointer;
+  color:var(--text3); transition:color .15s;
+}
+.theme-toggle-btn:hover { color:var(--text); }
+.tab-btn.t-settings { margin-left:0; }
+
+/* ══ SETTLE MINI (in dash-header) ══ */
+.dash-settle-row { display:flex; gap:6px; justify-content:flex-end; align-items:center; margin-bottom:4px; }
+.settle-mini-btn {
+  font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:1.2px;
+  padding:4px 12px; border-radius:20px; cursor:pointer; font-family:inherit;
+  background:rgba(16,185,129,.12); color:#34d399;
+  border:1px solid rgba(16,185,129,.22);
+  transition:background .12s, box-shadow .12s;
+}
+.settle-mini-btn:hover { background:rgba(16,185,129,.22); box-shadow:0 0 10px rgba(16,185,129,.2); }
+.undo-mini-btn {
+  font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:1.2px;
+  padding:4px 12px; border-radius:20px; cursor:pointer; font-family:inherit;
+  background:rgba(245,158,11,.1); color:#fcd34d;
+  border:1px solid rgba(245,158,11,.2);
+  transition:background .12s;
+}
+.undo-mini-btn:hover { background:rgba(245,158,11,.18); }
+
+/* ══ LIGHT MODE OVERRIDES ══ */
+body.light {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --surface2: #f8fafc;
+  --surface3: #f1f5f9;
+  --border: rgba(15,23,42,.08);
+  --border2: rgba(15,23,42,.13);
+  --text: #1e293b;
+  --text2: #475569;
+  --text3: #94a3b8;
+  --blue-glow: rgba(37,99,235,.22);
+  --purple-glow: rgba(109,40,217,.2);
+  --green-glow: rgba(5,150,105,.2);
+  background-image:
+    radial-gradient(ellipse at 20% 0%,   rgba(219,234,254,.55) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 10%,  rgba(237,233,254,.4) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(204,251,241,.35) 0%, transparent 45%);
+}
+body.light::before { background-image: radial-gradient(circle, rgba(15,23,42,.07) 1px, transparent 1px); }
+body.light nav { background:rgba(255,255,255,.96); box-shadow:0 1px 0 rgba(15,23,42,.1), 0 4px 16px rgba(0,0,0,.06); border-bottom-color:rgba(15,23,42,.08); }
+body.light .nav-brand-icon { box-shadow:0 0 10px rgba(99,102,241,.25); }
+body.light .nav-brand h1 .brand-main { color:#0f172a; }
+body.light .tab-btn { color:#64748b; }
+body.light .tab-btn:hover { color:#1e293b; }
+body.light .tab-btn.active { color:#1e293b; }
+body.light .theme-toggle-btn { color:#64748b; }
+body.light .theme-toggle-btn:hover { color:#1e293b; }
+body.light .dash-greeting { color:#0f172a; }
+body.light .dash-date { color:#94a3b8; }
+body.light .dash-count { color:#cbd5e1; }
+body.light .settle-mini-btn { background:rgba(5,150,105,.1); color:#059669; border-color:rgba(5,150,105,.25); }
+body.light .settle-mini-btn:hover { background:rgba(5,150,105,.18); }
+body.light .undo-mini-btn { background:rgba(245,158,11,.08); color:#b45309; border-color:rgba(245,158,11,.3); }
+body.light .s-item { background:rgba(248,250,252,.95); }
+body.light .s-val { color:#0f172a; }
+body.light th { background:linear-gradient(180deg,#f8fafc,#f1f5f9); color:#64748b; border-bottom-color:#e2e8f0; }
+body.light td { border-bottom-color:rgba(241,245,249,.9); color:#374151; }
+body.light tbody tr:hover td { background:rgba(239,246,255,.6); }
+body.light .ap { color:#059669; } body.light .an { color:#dc2626; } body.light .ab { color:#0369a1; } body.light .an-b { color:#7c3aed; }
+body.light .badge.b-a { background:#dbeafe; color:#1d4ed8; }
+body.light .badge.b-g { background:#f3e8ff; color:#7c3aed; }
+body.light .badge.b-b { background:#f1f5f9; color:#475569; }
+body.light .badge.b-h { background:#dcfce7; color:#15803d; }
+body.light .badge.b-s { background:#e0f2fe; color:#0369a1; }
+body.light .bbc-amt.pos { color:#059669; } body.light .bbc-amt.neg { color:#dc2626; } body.light .bbc-amt.blue { color:#0369a1; }
+body.light .bbc-lbl { color:#94a3b8; } body.light .bbc-sub { color:#94a3b8; }
+body.light .fbar { background:rgba(248,250,252,.9); border-color:rgba(226,232,240,.8); }
+body.light .fbar-group label { color:#64748b; }
+body.light .fbar-group select, body.light .fbar-group input[type=date] { background:white; color:#374151; border-color:#e2e8f0; color-scheme:light; }
+body.light .clear-btn { background:white; color:#64748b; border-color:#e2e8f0; }
+body.light .clear-btn:hover { background:#f1f5f9; }
+body.light .tbl-header h2 { color:#0f172a; }
+body.light .modal { background:white; border-color:rgba(15,23,42,.1); box-shadow:0 32px 100px rgba(0,0,0,.18); }
+body.light .modal h3 { color:#0f172a; }
+body.light .form-row > label { color:#64748b; }
+body.light .form-row input, body.light .form-row select { background:white; color:#1e293b; border-color:#e2e8f0; color-scheme:light; }
+body.light .paid-toggle { border-color:#e2e8f0; }
+body.light .pt-btn { background:white; color:#64748b; border-right-color:#e2e8f0; }
+body.light .pt-btn.s-b { background:linear-gradient(135deg,#334155,#64748b); color:white; }
+body.light .check-row { border-color:#e2e8f0; }
+body.light .check-row:hover { background:#f0fdf4; border-color:#22c55e; }
+body.light .ck-lbl { color:#374151; }
+body.light .btn-cancel { background:white; color:#64748b; border-color:#e2e8f0; }
+body.light .btn-cancel:hover { background:#f8fafc; }
+body.light .ah { color:#94a3b8; }
+body.light .helper-box { background:linear-gradient(135deg,#f0fdf4,#dcfce7); border-color:#bbf7d0; }
+body.light .hb-lbl { color:#15803d; } body.light .hb-val { color:#166534; }
+body.light .chart-title { color:#64748b; }
+body.light .cbl { color:#475569; } body.light .cbt { background:#f1f5f9; } body.light .cbv { color:#374151; }
+body.light .chart-empty { color:#94a3b8; } body.light .empty { color:#94a3b8; }
+body.light .slog-card { background:white; }
+body.light .slog-header { border-bottom-color:#f1f5f9; }
+body.light .slog-header h2 { color:#0f172a; } body.light .slog-header p { color:#94a3b8; }
+body.light .slog-tbl th { background:linear-gradient(180deg,#f8fafc,#f1f5f9); color:#64748b; border-bottom-color:#e2e8f0; }
+body.light .slog-tbl td { border-bottom-color:rgba(241,245,249,.9); color:#374151; }
+body.light .slog-tbl tbody tr:hover td { background:rgba(239,246,255,.5); }
+body.light .badge-settled { background:linear-gradient(135deg,#d1fae5,#a7f3d0); color:#065f46; border-color:rgba(16,185,129,.3); }
+body.light .badge-undone { background:linear-gradient(135deg,#fef3c7,#fde68a); color:#92400e; border-color:rgba(245,158,11,.3); }
+body.light .settle-dir { color:#0f172a; }
+body.light .slog-empty { color:#94a3b8; }
+body.light .ss h3 { color:#0f172a; border-bottom-color:#f1f5f9; }
+body.light .cat-chip { background:#f8fafc; border-color:#e2e8f0; color:#475569; }
+body.light .cat-chip button { color:#94a3b8; }
+body.light .cat-add input { background:white; color:#374151; border-color:#e2e8f0; color-scheme:light; }
+body.light .warn-box { background:linear-gradient(135deg,#fefce8,#fef9c3); border-color:#fcd34d; color:#92400e; }
+body.light .save-ob { background:linear-gradient(135deg,#0f172a,#1e293b); }
+body.light .page-head-title { color:#0f172a; } body.light .page-head-sub { color:#94a3b8; }
+body.light .boc-adj-box { background:linear-gradient(135deg,#f0f9ff,#e0f2fe); border-color:#bae6fd; }
+body.light .boc-adj-box .cur-lbl { color:#0369a1; }
+body.light .boc-adj-box .cur-val { color:#0c4a6e; }
+body.light .boc-adj-box .arrow { color:#94a3b8; }
+body.light .boc-adj-box .new-bal input { color:#0c4a6e; background:white; border-color:#bae6fd; color-scheme:light; }
+body.light .adj-hint { color:#0369a1; }
+body.light .pos-adj-row { border-bottom-color:#f1f5f9; }
+body.light .pa-name { color:#374151; }
+body.light .pa-cur .pa-lbl { color:#94a3b8; }
+body.light .pa-cur .pa-val { color:#0f172a; }
+body.light .pa-arrow { color:#cbd5e1; }
+body.light .pa-inp input { color:#0f172a; background:white; border-color:#e2e8f0; color-scheme:light; }
+body.light .mox-box { background:linear-gradient(135deg,#faf5ff,#f5f3ff); border-color:#d8b4fe; }
+body.light .mox-title { color:#6d28d9; }
+body.light .mox-row .mox-key { color:#64748b; } body.light .mox-row .mox-val { color:#374151; }
+body.light .mox-divider { border-top-color:#ddd6fe; }
+body.light .mox-final-row .mox-key { color:#6d28d9; }
+body.light .mox-final-row .mox-final-val { color:#6d28d9; }
+body.light .mox-badge { box-shadow:0 2px 8px rgba(109,40,217,.2); }
+body.light tr.tr-b td:first-child { box-shadow:inset 3px 0 0 #94a3b8; }
+body.light .boc-bal-card.card-a { border-top-color:#3b82f6; }
+body.light .boc-bal-card.card-g { border-top-color:#a855f7; }
+body.light .boc-bal-card.card-i { border-top-color:#f59e0b; }
+body.light .boc-bal-card.card-bb { border-top-color:#0ea5e9; }
+
+/* ══ TRIP CARDS ══ */
+.trips-page-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; flex-wrap:wrap; gap:12px; }
+.trip-card-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; flex-wrap:wrap; gap:12px; }
+.trip-name { font-size:1.05rem; font-weight:800; color:white; letter-spacing:-.2px; }
+.trip-dates { font-size:.72rem; color:var(--text3); margin-top:3px; font-weight:500; }
+.trip-pos-bar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.trip-pos-pill { display:flex; align-items:center; gap:8px; padding:8px 14px; border-radius:12px; border:1px solid var(--border2); background:var(--surface3); }
+.trip-pos-pill .tp-lbl { font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.9px; color:var(--text3); }
+.trip-pos-pill .tp-val { font-size:.88rem; font-weight:800; letter-spacing:-.2px; }
+.trip-head-actions { display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
+.trip-settle-btn { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; padding:4px 12px; border-radius:20px; cursor:pointer; font-family:inherit; background:rgba(16,185,129,.12); color:#34d399; border:1px solid rgba(16,185,129,.22); transition:background .12s; }
+.trip-settle-btn:hover { background:rgba(16,185,129,.22); }
+.trip-undo-btn { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; padding:4px 12px; border-radius:20px; cursor:pointer; font-family:inherit; background:rgba(245,158,11,.1); color:#fcd34d; border:1px solid rgba(245,158,11,.2); transition:background .12s; }
+.trip-undo-btn:hover { background:rgba(245,158,11,.18); }
+.trip-del-btn { font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; padding:4px 10px; border-radius:20px; cursor:pointer; font-family:inherit; background:rgba(239,68,68,.08); color:#f87171; border:1px solid rgba(239,68,68,.18); transition:background .12s; }
+.trip-del-btn:hover { background:rgba(239,68,68,.16); }
+.trip-section-divider { border:none; border-top:1px solid var(--border); margin:14px 0; }
+.trip-sub-title { font-size:.63rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
+
+body.light .trip-name { color:#0f172a; }
+body.light .trip-pos-pill { background:#f1f5f9; border-color:#e2e8f0; }
+body.light .trip-settle-btn { background:rgba(5,150,105,.1); color:#059669; border-color:rgba(5,150,105,.25); }
+body.light .trip-undo-btn { background:rgba(245,158,11,.08); color:#b45309; border-color:rgba(245,158,11,.3); }
+body.light .trip-section-divider { border-top-color:#f1f5f9; }
+/* Settle modal preview */
+.settle-preview-box { background:var(--surface3); border:1px solid var(--border2); border-radius:12px; padding:14px 18px; margin-bottom:16px; }
+.sp-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; }
+.sp-lbl { font-size:.78rem; font-weight:600; color:var(--text2); }
+.sp-val { font-size:.95rem; font-weight:800; }
+.sp-dir { font-size:.82rem; font-weight:700; color:var(--text); margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+/* Subcategory */
+.subcat-lbl { display:block; font-size:.66rem; color:var(--text3); font-weight:500; margin-top:1px; }
+body.light .settle-preview-box { background:#f8fafc; border-color:#e2e8f0; }
+body.light .sp-dir { color:#1e293b; border-top-color:#e2e8f0; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-brand-icon">🏠</div>
+    <h1><span class="brand-main">Panorama </span><span class="brand-sub">Expenses</span></h1>
+  </div>
+  <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab-btn"        onclick="switchTab('boc')">BOC</button>
+  <button class="tab-btn"        onclick="switchTab('nonboc')">Non-BOC</button>
+  <button class="tab-btn"        onclick="switchTab('groceries')">Groceries</button>
+  <button class="tab-btn"        onclick="switchTab('trips')">✈ Trips</button>
+  <button class="tab-btn"        onclick="switchTab('settlements')">🤝 Settlements</button>
+  <span id="sync-dot" style="font-size:.75rem;padding:0 4px;cursor:default;transition:color .3s" title="Sync status">⏳</span>
+  <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark">☀️</button>
+  <button class="tab-btn t-settings" onclick="switchTab('settings')">⚙ Settings</button>
+</nav>
+
+<main>
+
+<!-- ─── DASHBOARD ─── -->
+<div id="tab-dashboard" class="section active">
+  <div class="dash-header">
+    <div>
+      <div class="dash-greeting">Good day, <span>Andrew &amp; Gloria</span></div>
+      <div class="dash-date" id="dash-date"></div>
+    </div>
+    <div class="dash-meta">
+      <div class="dash-settle-row">
+        <button class="settle-mini-btn" onclick="settle()">SETTLE</button>
+        <button class="undo-mini-btn" id="undo-settle-btn" style="display:none" onclick="undoSettle()">UNDO</button>
+      </div>
+      <div class="dash-count" id="dash-count"></div>
+    </div>
+  </div>
+  <div class="pos-grid-3" id="pos-cards"></div>
+  <div class="charts-grid">
+    <div class="card"><div class="chart-title">Avg Monthly Expenses — by Category</div><div id="chart-avg"></div></div>
+    <div class="card"><div class="chart-title">This Month's Breakdown</div><div id="chart-mo"></div></div>
+  </div>
+  <div class="card">
+    <div class="tbl-header"><h2>Recent Transactions</h2></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Section</th><th>Category</th><th>Amount</th><th>Paid By</th></tr></thead>
+        <tbody id="recent-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ─── BOC ─── -->
+<div id="tab-boc" class="section">
+  <!-- 4 balance cards -->
+  <div class="boc-bal-grid" id="boc-bal"></div>
+  <div class="card">
+    <div class="tbl-header">
+      <h2>BOC Bank Account</h2>
+      <button class="add-btn" onclick="openModal('boc')">＋ Add Entry</button>
+    </div>
+    <!-- Filters -->
+    <div class="fbar">
+      <div class="fbar-group">
+        <label>Category</label>
+        <select id="boc-f-cat" onchange="renderBOC()"><option value="">All Categories</option></select>
+      </div>
+      <div class="fbar-group">
+        <label>Period</label>
+        <select id="boc-f-period" onchange="onPeriod('boc')">
+          <option value="">All Time</option>
+          <option value="this-month">This Month</option>
+          <option value="last-month">Last Month</option>
+          <option value="last-3">Last 3 Months</option>
+          <option value="last-6">Last 6 Months</option>
+          <option value="this-year">This Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+      </div>
+      <div class="custom-range fbar-group" id="boc-custom">
+        <label>From</label>
+        <input type="date" id="boc-f-from" onchange="renderBOC()">
+        <label style="margin-left:6px">To</label>
+        <input type="date" id="boc-f-to" onchange="renderBOC()">
+      </div>
+      <div class="fbar-actions">
+        <button class="clear-btn" onclick="clearFilter('boc')">Clear Filters</button>
+      </div>
+    </div>
+    <div class="summary-bar" id="boc-summary"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Balance</th><th>Paid By</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="boc-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ─── NON-BOC ─── -->
+<div id="tab-nonboc" class="section">
+  <div class="card">
+    <div class="tbl-header">
+      <h2>Non-BOC Payments</h2>
+      <button class="add-btn" onclick="openModal('nonboc')">＋ Add Entry</button>
+    </div>
+    <div class="fbar">
+      <div class="fbar-group">
+        <label>Category</label>
+        <select id="nboc-f-cat" onchange="renderNonBOC()"><option value="">All Categories</option></select>
+      </div>
+      <div class="fbar-group">
+        <label>Period</label>
+        <select id="nboc-f-period" onchange="onPeriod('nboc')">
+          <option value="">All Time</option>
+          <option value="this-month">This Month</option>
+          <option value="last-month">Last Month</option>
+          <option value="last-3">Last 3 Months</option>
+          <option value="last-6">Last 6 Months</option>
+          <option value="this-year">This Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+      </div>
+      <div class="custom-range fbar-group" id="nboc-custom">
+        <label>From</label>
+        <input type="date" id="nboc-f-from" onchange="renderNonBOC()">
+        <label style="margin-left:6px">To</label>
+        <input type="date" id="nboc-f-to" onchange="renderNonBOC()">
+      </div>
+      <div class="fbar-actions">
+        <button class="clear-btn" onclick="clearFilter('nboc')">Clear Filters</button>
+      </div>
+    </div>
+    <div class="summary-bar" id="nboc-summary"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Paid By</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="nboc-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ─── GROCERIES ─── -->
+<div id="tab-groceries" class="section">
+  <div class="card">
+    <div class="tbl-header">
+      <h2>Groceries &amp; Food</h2>
+      <button class="add-btn" onclick="openModal('grocery')">＋ Add Entry</button>
+    </div>
+    <div class="helper-box">
+      <div><div class="hb-lbl">🧑‍🍳 Helper Food — All Time</div><div class="hb-val" id="h-all">HKD 0.00</div></div>
+      <div><div class="hb-lbl">This Month</div><div class="hb-val" id="h-mo">HKD 0.00</div></div>
+    </div>
+    <div class="fbar">
+      <div class="fbar-group">
+        <label>Category</label>
+        <select id="groc-f-cat" onchange="renderGroceries()"><option value="">All Categories</option></select>
+      </div>
+      <div class="fbar-group">
+        <label>Period</label>
+        <select id="groc-f-period" onchange="onPeriod('groc')">
+          <option value="">All Time</option>
+          <option value="this-month">This Month</option>
+          <option value="last-month">Last Month</option>
+          <option value="last-3">Last 3 Months</option>
+          <option value="last-6">Last 6 Months</option>
+          <option value="this-year">This Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+      </div>
+      <div class="custom-range fbar-group" id="groc-custom">
+        <label>From</label>
+        <input type="date" id="groc-f-from" onchange="renderGroceries()">
+        <label style="margin-left:6px">To</label>
+        <input type="date" id="groc-f-to" onchange="renderGroceries()">
+      </div>
+      <div class="fbar-actions">
+        <button class="clear-btn" onclick="clearFilter('groc')">Clear Filters</button>
+      </div>
+    </div>
+    <div class="summary-bar" id="groc-summary"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Paid By</th><th>Helper</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="groc-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SETTLEMENTS ─── -->
+<div id="tab-settlements" class="section">
+  <div class="slog-card">
+    <div class="slog-header">
+      <h2>Settlement History</h2>
+      <p>A record of every settle and undo. New expenses after each settlement count toward the next one.</p>
+    </div>
+    <div class="slog-tbl-wrap">
+      <table class="slog-tbl">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Andrew (before)</th>
+            <th>Gloria (before)</th>
+            <th>Settlement</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="settle-tbody"><tr><td colspan="5" class="slog-empty">No settlements yet.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ─── TRIPS ─── -->
+<div id="tab-trips" class="section">
+  <div class="trips-page-header">
+    <div class="page-head">
+      <div class="page-head-title">Trips</div>
+      <div class="page-head-sub">Per-trip expense tracking with independent settlements</div>
+    </div>
+    <button class="add-btn" onclick="openNewTripModal()">＋ New Trip</button>
+  </div>
+  <div id="trips-container"></div>
+</div>
+
+<!-- ─── SETTINGS ─── -->
+<div id="tab-settings" class="section">
+  <!-- BOC Position Adjusters -->
+  <div class="card ss">
+    <h3>BOC Tab — Position Adjusters</h3>
+    <div style="font-size:.75rem;color:#64748b;margin-bottom:14px;">Set any value to match your records. Existing transactions are preserved — only the opening offset is adjusted.</div>
+
+    <!-- Andrew BOC -->
+    <div class="pos-adj-row">
+      <div class="pa-name">Andrew BOC</div>
+      <div class="pa-cur"><div class="pa-lbl">Current</div><div class="pa-val" id="pa-cur-ba">—</div></div>
+      <div class="pa-arrow">→</div>
+      <div class="pa-inp"><input type="number" id="pa-inp-ba" step="0.01" placeholder="e.g. 1250.00"></div>
+      <button class="pa-save" onclick="savePosAdj('ba')">Update</button>
+    </div>
+
+    <!-- Gloria BOC -->
+    <div class="pos-adj-row">
+      <div class="pa-name">Gloria BOC</div>
+      <div class="pa-cur"><div class="pa-lbl">Current</div><div class="pa-val" id="pa-cur-bg">—</div></div>
+      <div class="pa-arrow">→</div>
+      <div class="pa-inp"><input type="number" id="pa-inp-bg" step="0.01" placeholder="e.g. -800.00"></div>
+      <button class="pa-save" onclick="savePosAdj('bg')">Update</button>
+    </div>
+
+    <!-- Interest -->
+    <div class="pos-adj-row">
+      <div class="pa-name">Interest</div>
+      <div class="pa-cur"><div class="pa-lbl">Current</div><div class="pa-val" id="pa-cur-bi">—</div></div>
+      <div class="pa-arrow">→</div>
+      <div class="pa-inp"><input type="number" id="pa-inp-bi" step="0.01" placeholder="e.g. 4766.62"></div>
+      <button class="pa-save" onclick="savePosAdj('bi')">Update</button>
+    </div>
+
+    <!-- Account Balance -->
+    <div class="pos-adj-row">
+      <div class="pa-name">Account Balance</div>
+      <div class="pa-cur"><div class="pa-lbl">Current</div><div class="pa-val" id="pa-cur-bb">—</div></div>
+      <div class="pa-arrow">→</div>
+      <div class="pa-inp"><input type="number" id="pa-inp-bb" step="0.01" placeholder="e.g. -6767.01"></div>
+      <button class="pa-save" onclick="savePosAdj('bb')">Update</button>
+    </div>
+  </div>
+
+  <!-- Overall Positions (dashboard) — hidden inputs kept for saveOpeningBalances() -->
+  <input type="hidden" id="ob-andrew"   value="">
+  <input type="hidden" id="ob-gloria"   value="">
+  <input type="hidden" id="ob-interest" value="">
+  <input type="hidden" id="ob-boc"      value="">
+  <div class="card ss"><h3>BOC Categories</h3><div class="cat-list" id="cat-boc"></div><div class="cat-add"><input type="text" id="new-boc" placeholder="New category"><button onclick="addCat('boc')">Add</button></div></div>
+  <div class="card ss"><h3>Non-BOC Categories</h3><div class="cat-list" id="cat-nonboc"></div><div class="cat-add"><input type="text" id="new-nonboc" placeholder="New category"><button onclick="addCat('nonboc')">Add</button></div></div>
+  <div class="card ss"><h3>Grocery Categories</h3><div class="cat-list" id="cat-grocery"></div><div class="cat-add"><input type="text" id="new-grocery" placeholder="New category"><button onclick="addCat('grocery')">Add</button></div></div>
+  <div class="card ss">
+    <h3>Subcategories</h3>
+    <div style="font-size:.75rem;color:var(--text3);margin-bottom:14px">3-level hierarchy: Category → Subcategory → Sub-subcategory (e.g. Alex → ECA → Taekwondo). New entries typed during expense input are auto-saved here.</div>
+    <div class="fg2" style="margin-bottom:12px">
+      <div class="form-row"><label>Tab</label>
+        <select id="sc-type" onchange="onScTypeChange()">
+          <option value="boc">BOC</option>
+          <option value="nonboc">Non-BOC</option>
+          <option value="grocery">Grocery</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Category</label>
+        <select id="sc-cat" onchange="onScCatChange()"></select>
+      </div>
+    </div>
+    <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:6px">Subcategories</div>
+    <div class="cat-list" id="subcat-list"></div>
+    <div class="cat-add" style="margin-bottom:18px"><input type="text" id="new-subcat" placeholder="New subcategory"><button onclick="addSubcat()">Add</button></div>
+    <hr style="border:none;border-top:1px solid var(--border);margin-bottom:16px">
+    <div class="form-row" style="margin-bottom:12px"><label>Subcategory</label>
+      <select id="sc-subcat" onchange="renderSubSubcatList()"></select>
+    </div>
+    <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:6px">Sub-subcategories</div>
+    <div class="cat-list" id="subsubcat-list"></div>
+    <div class="cat-add"><input type="text" id="new-subsubcat" placeholder="New sub-subcategory"><button onclick="addSubSubcat()">Add</button></div>
+  </div>
+</div>
+
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="bgClose(event)">
+  <div class="modal" id="modal-body"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════
+const SK = 'pano_v3';
+
+const D_BOC = ['Opening Balance','Deposit','Mortgage','Management Fee','Interest','Fire Insurance','Parking','SKH','SKH Charge','SKH ECA','VEO','VPP','Transfer In','Transfer Out','Withdrawal','Other'];
+const D_NBOC = ['Gov. Rent','Rates','Electrical Bill','Town Gas Bill','Water Bill','Internet (HKBN)','Reno Insurance','Air Con Service','German Pool','Cleaning (Venus)','Maid Placement Fee','Helper Salary (Mercy)','Helper Insurance','Helper Medical (Mercy GP)','SKH Fees','SKH Materials','SKH ECA','SKH PTA','SKH Event','SKH Deposit','VEO Fees','VEO ECA','VEO Uniform','VEO PTA','VEO Event','VPP','Canossa','Shichida','Alex – Art Class','Alex – Drawing','Alex – Swimming','Alex – Taekwondo','Alex – Minisports','Alex – Speaking Class','Alex – Eye Level','Alex – Phonics','Alex – Vaccine','Alex – Medical','Fire Insurance','Lai See','Other'];
+const D_GROC = ['Groceries & Supplies','Groceries & Supplies (Mox)','Meat','HKTVMall','iHerb','Mercy Other','Parking Ticket','Cashback','Other'];
+
+function newDB() {
+  return {
+    opening: { andrew:20302.975, gloria:-31801.035, interest:4766.62, bocBalance:-6767.01 },
+    cats: { boc:[...D_BOC], nonboc:[...D_NBOC], grocery:[...D_GROC] },
+    boc:[], nonBoc:[], groceries:[], settlements:[]
+  };
+}
+// ── Cloud sync (JSONBin) ──────────────────────────────────────────
+const BIN_ID     = '6a26af29f5f4af5e29cb090c';
+const MASTER_KEY = '$2a$10$c56yg9pnfk1XFqce2F3I/OJqPCvlR2Fo1UskPXLdS1olIY.yu3W.e';
+const BIN_URL    = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+let _saveTimer = null;
+function setSyncDot(state) { // 'pending'|'saving'|'saved'|'error'
+  const el = document.getElementById('sync-dot');
+  if (!el) return;
+  const map = { pending:'⏳', saving:'☁️', saved:'✓', error:'⚠️' };
+  const col = { pending:'#94a3b8', saving:'#60a5fa', saved:'#34d399', error:'#f87171' };
+  el.textContent = map[state]||'';
+  el.style.color = col[state]||'#94a3b8';
+  el.title = { pending:'Save pending…', saving:'Saving to cloud…', saved:'Saved', error:'Cloud save failed — data stored locally' }[state]||'';
+}
+
+async function pushToCloud() {
+  setSyncDot('saving');
+  try {
+    const res = await fetch(BIN_URL, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Master-Key':MASTER_KEY},
+      body: JSON.stringify(db)
+    });
+    if (!res.ok) throw new Error(res.status);
+    setSyncDot('saved');
+  } catch(e) {
+    console.warn('Cloud save failed:', e);
+    setSyncDot('error');
+  }
+}
+
+function save() {
+  localStorage.setItem(SK, JSON.stringify(db)); // instant local cache
+  setSyncDot('pending');
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(pushToCloud, 1400); // debounce — coalesce rapid edits
+}
+
+async function initDB() {
+  // 1. Start with local cache so UI is instant
+  let local = null;
+  try { const r=localStorage.getItem(SK); if(r) local=JSON.parse(r); } catch(e){}
+  let db = local || newDB();
+
+  // 2. Overlay with cloud (source of truth)
+  setSyncDot('saving');
+  try {
+    const res = await fetch(BIN_URL+'/latest', {
+      headers:{'X-Master-Key':MASTER_KEY}
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const rec  = json.record;
+      // Use cloud data only if it looks like real app data (has opening or boc key)
+      if (rec && (rec.opening || rec.boc)) {
+        db = rec;
+        localStorage.setItem(SK, JSON.stringify(db)); // sync local cache
+      }
+    }
+    setSyncDot('saved');
+  } catch(e) {
+    console.warn('Cloud load failed, using local data:', e);
+    setSyncDot('error');
+  }
+
+  return db;
+}
+
+let db = newDB(); // placeholder until async init completes
+
+// ══════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════
+function uid()    { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+function today()  { return new Date().toISOString().slice(0,10); }
+function thisMo() { return today().slice(0,7); }
+
+function fmtN(n, sign=true) {
+  const abs = Math.abs(n).toLocaleString('en-HK',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if (!sign) return abs;
+  return (n>=0?'+':'−')+abs;
+}
+function fmtD(d) {
+  if (!d) return '—';
+  return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+}
+function aC(n) { return parseFloat(n)>=0?'ap':'an'; }
+function pb(p) {
+  if (p==='andrew') return '<span class="badge b-a">Andrew</span>';
+  if (p==='gloria')  return '<span class="badge b-g">Gloria</span>';
+  return '<span class="badge b-b">Both</span>';
+}
+function sBar(items) {
+  return items.map(i=>`<div class="s-item"><div class="s-lbl">${i.l}</div><div class="s-val"${i.c?` style="color:${i.c}"`:''}>${i.v}</div></div>`).join('');
+}
+function catOpts(type, data) {
+  const cats = [...new Set(data.map(t=>t.category).filter(Boolean))].sort();
+  return cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+
+// ══════════════════════════════════════
+//  PERIOD FILTER
+// ══════════════════════════════════════
+function periodRange(period, from, to) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const td = today();
+
+  switch(period) {
+    case 'this-month': {
+      const s = thisMo()+'-01';
+      return [s, td];
+    }
+    case 'last-month': {
+      const lm = new Date(now.getFullYear(), now.getMonth()-1, 1);
+      const lme = new Date(now.getFullYear(), now.getMonth(), 0);
+      return [ymd(lm), ymd(lme)];
+    }
+    case 'last-3': {
+      const s = new Date(now.getFullYear(), now.getMonth()-2, 1);
+      return [ymd(s), td];
+    }
+    case 'last-6': {
+      const s = new Date(now.getFullYear(), now.getMonth()-5, 1);
+      return [ymd(s), td];
+    }
+    case 'this-year': {
+      return [now.getFullYear()+'-01-01', td];
+    }
+    case 'custom': {
+      return [from||'', to||''];
+    }
+    default: return [null, null];
+  }
+}
+
+function applyFilter(items, prefix) {
+  let out = [...items];
+  const cat    = document.getElementById(prefix+'-f-cat')?.value;
+  const period = document.getElementById(prefix+'-f-period')?.value;
+  const from   = document.getElementById(prefix+'-f-from')?.value;
+  const to     = document.getElementById(prefix+'-f-to')?.value;
+
+  if (cat) out = out.filter(t => t.category === cat);
+
+  if (period) {
+    const [s, e] = periodRange(period, from, to);
+    if (s) out = out.filter(t => (t.date||'') >= s);
+    if (e) out = out.filter(t => (t.date||'') <= e);
+  }
+  return out;
+}
+
+function onPeriod(prefix) {
+  const val = document.getElementById(prefix+'-f-period').value;
+  const cr  = document.getElementById(prefix+'-custom');
+  if (val === 'custom') cr.classList.add('show'); else cr.classList.remove('show');
+  if (prefix==='boc')  renderBOC();
+  if (prefix==='nboc') renderNonBOC();
+  if (prefix==='groc') renderGroceries();
+}
+
+function clearFilter(prefix) {
+  const els = ['f-cat','f-period','f-from','f-to'];
+  els.forEach(id => { const el = document.getElementById(prefix+'-'+id); if(el) el.value=''; });
+  document.getElementById(prefix+'-custom')?.classList.remove('show');
+  if (prefix==='boc')  renderBOC();
+  if (prefix==='nboc') renderNonBOC();
+  if (prefix==='groc') renderGroceries();
+}
+
+function populateCatFilter(prefix, data) {
+  const sel = document.getElementById(prefix+'-f-cat');
+  const prev = sel.value;
+  const cats = [...new Set(data.map(t=>t.category).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All Categories</option>' +
+    cats.map(c=>`<option value="${c}"${c===prev?' selected':''}>${c}</option>`).join('');
+}
+
+// ══════════════════════════════════════
+//  POSITIONS (all tabs)
+// ══════════════════════════════════════
+// Categories that belong entirely to the payer — not shared 50/50
+const DIRECT_CATS = new Set(['Deposit','Withdrawal']);
+
+// Core BOC position calculator — used by both the BOC tab cards and the dashboard.
+// cutoffDate: if set, only processes transactions on or before that date.
+// Returns { andrew, gloria } (net positions), plus interest and acct if needed.
+function bocBalancesUpTo(cutoffDate) {
+  let andrew   = parseFloat(db.opening.bocAndrew)||0;
+  let gloria   = parseFloat(db.opening.bocGloria)||0;
+  for (const t of db.boc) {
+    if (cutoffDate && (t.date||'') > cutoffDate) continue;
+    const signed = parseFloat(t.amount)||0;
+    if (t.category==='Interest') continue; // Interest tracked separately
+    const abs = Math.abs(signed);
+    if (DIRECT_CATS.has(t.category)) {
+      // Deposits/Withdrawals: full signed amount to payer (funds the joint account)
+      if      (t.paidBy==='andrew') andrew += signed;
+      else if (t.paidBy==='gloria') gloria += signed;
+      else { andrew += signed/2; gloria += signed/2; }
+    } else {
+      if      (t.paidBy==='andrew') { andrew+=abs/2; gloria-=abs/2; }
+      else if (t.paidBy==='gloria') { gloria+=abs/2; andrew-=abs/2; }
+      else                          { andrew+=signed/2; gloria+=signed/2; }
+    }
+  }
+  return { andrew, gloria };
+}
+
+// BOC-specific balances for the header cards (full: interest + account balance)
+function bocBalances() {
+  const { andrew, gloria } = bocBalancesUpTo(null);
+  let interest = parseFloat(db.opening.bocInterest)||0;
+  for (const t of db.boc) {
+    if (t.category==='Interest') interest += parseFloat(t.amount)||0;
+  }
+  const acct = (parseFloat(db.opening.bocBalance)||0) + db.boc.reduce((s,t)=>s+(parseFloat(t.amount)||0),0);
+  return { andrew, gloria, interest, acct };
+}
+
+// Dashboard positions: BOC net positions + NonBOC + Grocery contributions.
+// BOC uses bocBalancesUpTo() so the dashboard always mirrors the BOC tab cards.
+function calcPositions(cutoffDate) {
+  let andrew = parseFloat(db.opening.andrew)||0;
+  let gloria = parseFloat(db.opening.gloria)||0;
+
+  // BOC: use the exact same positions shown in the BOC tab cards
+  const bocPos = bocBalancesUpTo(cutoffDate);
+  andrew += bocPos.andrew;
+  gloria += bocPos.gloria;
+
+  // NonBOC and Grocery: transaction-based
+  const proc = arr => {
+    for (const t of arr) {
+      if (cutoffDate && (t.date||'') > cutoffDate) continue;
+      if (t.category==='Interest') continue;
+      if (DIRECT_CATS.has(t.category)) continue;
+      const signed = parseFloat(t.amount)||0;
+      const abs    = Math.abs(signed);
+      if      (t.paidBy==='andrew') { andrew+=abs/2; gloria-=abs/2; }
+      else if (t.paidBy==='gloria') { gloria+=abs/2; andrew-=abs/2; }
+      else                          { andrew+=signed/2; gloria+=signed/2; }
+    }
+  };
+  proc(db.nonBoc); proc(db.groceries);
+  return { andrew, gloria };
+}
+
+// ══════════════════════════════════════
+//  CHART DATA
+// ══════════════════════════════════════
+const COLORS = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1','#14b8a6','#a78bfa'];
+
+function allExpenses() {
+  return [
+    ...db.boc.map(t=>({...t})),
+    ...db.nonBoc.map(t=>({...t})),
+    ...db.groceries.map(t=>({...t})),
+    ...(db.tripExpenses||[]).map(t=>({...t})),
+  ].filter(t => parseFloat(t.amount)<0 && t.category!=='Interest' && !DIRECT_CATS.has(t.category));
+}
+
+function avgMonthlyCat() {
+  const ex = allExpenses();
+  if (!ex.length) return [];
+  const byKey={}, months=new Set(), cats=new Set();
+  for (const t of ex) {
+    const mo=(t.date||'').slice(0,7); if(!mo) continue;
+    byKey[t.category+'|'+mo] = (byKey[t.category+'|'+mo]||0)+Math.abs(parseFloat(t.amount)||0);
+    months.add(mo); cats.add(t.category);
+  }
+  const mc = months.size||1;
+  return [...cats].map(c=>({cat:c, avg:[...months].reduce((s,m)=>s+(byKey[c+'|'+m]||0),0)/mc}))
+    .sort((a,b)=>b.avg-a.avg).slice(0,12);
+}
+
+function thisMoCat() {
+  const mo=thisMo();
+  const ex=allExpenses().filter(t=>(t.date||'').startsWith(mo));
+  const bc={};
+  ex.forEach(t=>{ bc[t.category]=(bc[t.category]||0)+Math.abs(parseFloat(t.amount)||0); });
+  return Object.entries(bc).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([cat,avg])=>({cat,avg}));
+}
+
+function renderBarChart(id, data, msg) {
+  const el=document.getElementById(id);
+  if (!data.length) { el.innerHTML=`<div class="chart-empty">${msg}</div>`; return; }
+  const max=data[0].avg||1;
+  el.innerHTML = data.map((d,i)=>{
+    const pct=(d.avg/max*100).toFixed(1);
+    return `<div class="chart-bar-row">
+      <div class="cbl" title="${d.cat}">${d.cat}</div>
+      <div class="cbt"><div class="cbf" style="width:${pct}%;background:${COLORS[i%COLORS.length]}"></div></div>
+      <div class="cbv">HKD ${fmtN(d.avg,false)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+//  TAB NAV
+// ══════════════════════════════════════
+const TABS=['dashboard','boc','nonboc','groceries','trips','settlements','settings'];
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',TABS[i]===name));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if (name==='settings')    renderSettings();
+  if (name==='settlements') renderSettlements();
+  if (name==='trips')       renderTrips();
+}
+
+// ══════════════════════════════════════
+//  RENDER DASHBOARD
+// ══════════════════════════════════════
+function renderDashboard() {
+  // Date header
+  const now = new Date();
+  const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dateEl = document.getElementById('dash-date');
+  if (dateEl) dateEl.textContent = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  const countEl = document.getElementById('dash-count');
+  const total = db.boc.length + db.nonBoc.length + db.groceries.length + (db.tripExpenses||[]).length;
+  if (countEl) countEl.textContent = total.toLocaleString() + ' total transactions';
+
+  const {andrew, gloria} = calcPositions();
+  const diff = andrew - gloria;
+  let settleAmt, settleWho;
+  if (Math.abs(diff)<0.01) { settleAmt='Balanced ✓'; settleWho='No outstanding amount'; }
+  else if (diff>0)          { settleAmt='HKD '+fmtN(diff/2,false); settleWho='Gloria owes Andrew'; }
+  else                      { settleAmt='HKD '+fmtN(Math.abs(diff)/2,false); settleWho='Andrew owes Gloria'; }
+
+  document.getElementById('pos-cards').innerHTML = `
+    <div class="pos-card c-andrew">
+      <div class="pc-monogram">A</div>
+      <div class="pc-lbl">Andrew — Position</div>
+      <div class="pc-amt">${fmtN(andrew)}</div>
+      <div class="pc-sub">BOC · Non-BOC · Groceries</div>
+    </div>
+    <div class="pos-card c-gloria">
+      <div class="pc-monogram">G</div>
+      <div class="pc-lbl">Gloria — Position</div>
+      <div class="pc-amt">${fmtN(gloria)}</div>
+      <div class="pc-sub">BOC · Non-BOC · Groceries</div>
+    </div>
+    <div class="pos-card c-settle">
+      <div class="pc-monogram">⇄</div>
+      <div class="pc-lbl">Settlement</div>
+      <div class="pc-amt" style="font-size:1.2rem;line-height:1.35">${settleAmt}</div>
+      <div class="pc-sub">${settleWho}</div>
+    </div>`;
+
+  // Show/hide Undo button
+  const lastSettle = (db.settlements||[]).slice().reverse().find(s=>!s.undone);
+  const undoBtn = document.getElementById('undo-settle-btn');
+  if (undoBtn) undoBtn.style.display = lastSettle ? 'inline-flex' : 'none';
+
+  renderBarChart('chart-avg', avgMonthlyCat(), 'Averages build up as you log more months.');
+  renderBarChart('chart-mo',  thisMoCat(),     'No expenses logged this month yet.');
+
+  const all = [
+    ...db.boc.map(t=>({...t,_s:'BOC'})),
+    ...db.nonBoc.map(t=>({...t,_s:'Non-BOC'})),
+    ...db.groceries.map(t=>({...t,_s:'Groceries'})),
+    ...(db.tripExpenses||[]).map(t=>{
+      const trip=(db.trips||[]).find(tr=>tr.id===t.tripId);
+      return {...t, _s:'✈ '+(trip?trip.name:'Trip')};
+    }),
+  ].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,20);
+
+  const tbody=document.getElementById('recent-tbody');
+  if (!all.length) {
+    tbody.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="ei">📊</div><p>No transactions yet.</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML=all.map(t=>`<tr class="${t.paidBy==='andrew'?'tr-a':t.paidBy==='gloria'?'tr-g':'tr-b'}">
+    <td>${fmtD(t.date)}</td>
+    <td><span class="badge b-s">${t._s}</span></td>
+    <td>${t.category||'—'}</td>
+    <td class="num ${aC(t.amount)}">${fmtN(parseFloat(t.amount))}</td>
+    <td>${pb(t.paidBy)}</td>
+  </tr>`).join('');
+}
+
+// ══════════════════════════════════════
+//  RENDER BOC
+// ══════════════════════════════════════
+function renderBOC() {
+  // Balance header cards (always full data, unfiltered)
+  const {andrew:ba, gloria:bg, interest:bi, acct:bb} = bocBalances();
+  document.getElementById('boc-bal').innerHTML = `
+    <div class="boc-bal-card card-a">
+      <div class="bbc-lbl">Andrew</div>
+      <div class="bbc-amt ${ba>=0?'pos':'neg'}">${fmtN(ba)}</div>
+      <div class="bbc-sub">BOC position</div>
+    </div>
+    <div class="boc-bal-card card-g">
+      <div class="bbc-lbl">Gloria</div>
+      <div class="bbc-amt ${bg>=0?'pos':'neg'}">${fmtN(bg)}</div>
+      <div class="bbc-sub">BOC position</div>
+    </div>
+    <div class="boc-bal-card card-i">
+      <div class="bbc-lbl">Interest</div>
+      <div class="bbc-amt ${bi>=0?'pos':'neg'}">${fmtN(bi)}</div>
+      <div class="bbc-sub">earned in BOC</div>
+    </div>
+    <div class="boc-bal-card card-bb">
+      <div class="bbc-lbl">Account Balance</div>
+      <div class="bbc-amt blue">${fmtN(bb)}</div>
+      <div class="bbc-sub">current BOC balance</div>
+    </div>`;
+
+  // Build running balance table (chronological for balance calc)
+  const sorted = [...db.boc].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  let bal = parseFloat(db.opening.bocBalance)||0;
+  const withBal = sorted.map(t=>{ bal+=parseFloat(t.amount)||0; return {...t,_bal:bal}; });
+
+  // Populate category filter
+  populateCatFilter('boc', db.boc);
+
+  // Apply filters to display (newest first)
+  const filtered = applyFilter(withBal.slice().reverse(), 'boc');
+
+  const tbody = document.getElementById('boc-tbody');
+  if (!filtered.length) {
+    tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="ei">🏦</div><p>No entries match this filter.</p></div></td></tr>`;
+  } else {
+    tbody.innerHTML = filtered.map(t=>`<tr class="${t.paidBy==='andrew'?'tr-a':t.paidBy==='gloria'?'tr-g':'tr-b'}">
+      <td>${fmtD(t.date)}</td>
+      <td>${t.category}${t.subcategory?`<span class="subcat-lbl">↳ ${t.subcategory}${t.subsubcategory?` / ${t.subsubcategory}`:''}</span>`:''}</td>
+      <td class="num ${aC(t.amount)}">${fmtN(parseFloat(t.amount))}</td>
+      <td class="num ${t._bal>=0?'ab':'an-b'}">${fmtN(t._bal)}</td>
+      <td>${pb(t.paidBy)}</td>
+      <td>${t.notes||'—'}</td>
+      <td><button class="del-btn" onclick="del('boc','${t.id}')">✕</button></td>
+    </tr>`).join('');
+  }
+
+  const totalIn  = filtered.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const totalInA = db.boc.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0); // unfiltered for account
+  document.getElementById('boc-summary').innerHTML = sBar([
+    {l:'Shown',       v:filtered.length+' of '+db.boc.length},
+    {l:'Total In',    v:fmtN(totalIn),  c:'#059669'},
+    {l:'Account Bal', v:fmtN(bb), c:bb>=0?'#0369a1':'#9333ea'},
+  ]);
+}
+
+// ══════════════════════════════════════
+//  RENDER NON-BOC
+// ══════════════════════════════════════
+function renderNonBOC() {
+  populateCatFilter('nboc', db.nonBoc);
+  const filtered = applyFilter([...db.nonBoc].sort((a,b)=>(b.date||'').localeCompare(a.date||'')), 'nboc');
+  const tbody = document.getElementById('nboc-tbody');
+
+  if (!filtered.length) {
+    tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="ei">💳</div><p>No entries match this filter.</p></div></td></tr>`;
+  } else {
+    tbody.innerHTML=filtered.map(t=>`<tr class="${t.paidBy==='andrew'?'tr-a':t.paidBy==='gloria'?'tr-g':'tr-b'}">
+      <td>${fmtD(t.date)}</td>
+      <td>${t.category}${t.subcategory?`<span class="subcat-lbl">↳ ${t.subcategory}${t.subsubcategory?` / ${t.subsubcategory}`:''}</span>`:''}</td>
+      <td class="num ${aC(t.amount)}">${fmtN(parseFloat(t.amount))}</td>
+      <td>${pb(t.paidBy)}</td>
+      <td>${t.notes||'—'}</td>
+      <td><button class="del-btn" onclick="del('nonBoc','${t.id}')">✕</button></td>
+    </tr>`).join('');
+  }
+
+  const byA = filtered.filter(t=>t.paidBy==='andrew').reduce((s,t)=>s+Math.abs(t.amount),0);
+  const byG = filtered.filter(t=>t.paidBy==='gloria').reduce((s,t)=>s+Math.abs(t.amount),0);
+  document.getElementById('nboc-summary').innerHTML = sBar([
+    {l:'Shown',       v:filtered.length+' of '+db.nonBoc.length},
+    {l:'Andrew Paid', v:'HKD '+fmtN(byA,false), c:'#1d4ed8'},
+    {l:'Gloria Paid', v:'HKD '+fmtN(byG,false), c:'#7c3aed'},
+  ]);
+}
+
+// ══════════════════════════════════════
+//  RENDER GROCERIES
+// ══════════════════════════════════════
+function renderGroceries() {
+  populateCatFilter('groc', db.groceries);
+  const filtered = applyFilter([...db.groceries].sort((a,b)=>(b.date||'').localeCompare(a.date||'')), 'groc');
+  const tbody = document.getElementById('groc-tbody');
+
+  if (!filtered.length) {
+    tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="ei">🛒</div><p>No entries match this filter.</p></div></td></tr>`;
+  } else {
+    tbody.innerHTML=filtered.map(t=>`<tr class="${t.paidBy==='andrew'?'tr-a':t.paidBy==='gloria'?'tr-g':'tr-b'}">
+      <td>${fmtD(t.date)}</td>
+      <td>${t.category}${t.subcategory?`<span class="subcat-lbl">↳ ${t.subcategory}${t.subsubcategory?` / ${t.subsubcategory}`:''}</span>`:''}</td>
+      <td class="num ${aC(t.amount)}">${fmtN(parseFloat(t.amount))}</td>
+      <td>${pb(t.paidBy)}</td>
+      <td>${t.isHelper?'<span class="badge b-h">Helper</span>':'—'}</td>
+      <td>${t.notes||'—'}</td>
+      <td><button class="del-btn" onclick="del('groceries','${t.id}')">✕</button></td>
+    </tr>`).join('');
+  }
+
+  // Helper totals always from full dataset
+  const hAll = db.groceries.filter(t=>t.isHelper).reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const hMo  = db.groceries.filter(t=>t.isHelper&&(t.date||'').startsWith(thisMo())).reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  document.getElementById('h-all').textContent = 'HKD '+fmtN(hAll,false);
+  document.getElementById('h-mo').textContent  = 'HKD '+fmtN(hMo,false);
+
+  const byA  = filtered.filter(t=>t.paidBy==='andrew').reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const byG  = filtered.filter(t=>t.paidBy==='gloria').reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const tot  = filtered.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  document.getElementById('groc-summary').innerHTML = sBar([
+    {l:'Shown',       v:filtered.length+' of '+db.groceries.length},
+    {l:'Andrew Paid', v:'HKD '+fmtN(byA,false), c:'#1d4ed8'},
+    {l:'Gloria Paid', v:'HKD '+fmtN(byG,false), c:'#7c3aed'},
+    {l:'Total',       v:'HKD '+fmtN(tot,false)},
+  ]);
+}
+
+// ══════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════
+function renderSettings() {
+  // Keep hidden inputs in sync (used by saveOpeningBalances)
+  document.getElementById('ob-andrew').value   = db.opening.andrew;
+  document.getElementById('ob-gloria').value   = db.opening.gloria;
+  document.getElementById('ob-interest').value = db.opening.interest;
+  document.getElementById('ob-boc').value      = db.opening.bocBalance;
+
+  // Populate the 4 adjuster current values from bocBalances()
+  const {andrew:ba, gloria:bg, interest:bi, acct:bb} = bocBalances();
+  const setPA = (id, val) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = 'HKD ' + fmtN(val);
+    el.style.color = val >= 0 ? '#0f172a' : '#9333ea';
+  };
+  setPA('pa-cur-ba', ba);
+  setPA('pa-cur-bg', bg);
+  setPA('pa-cur-bi', bi);
+  setPA('pa-cur-bb', bb);
+  // Clear input fields
+  ['pa-inp-ba','pa-inp-bg','pa-inp-bi','pa-inp-bb'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+
+  ['boc','nonboc','grocery'].forEach(t=>renderCatList(t));
+  onScTypeChange(); onScCatChange();
+}
+
+// Generic BOC position adjuster: back-calculates the opening offset
+// so that (offset + tx-derived value) = desired value
+function savePosAdj(key) {
+  const inputId = 'pa-inp-' + key;
+  const desired = parseFloat(document.getElementById(inputId)?.value);
+  if (isNaN(desired)) { alert('Enter a valid number.'); return; }
+
+  if (key === 'ba') {
+    // Andrew BOC: derived portion = current value - current opening offset
+    const txPart = bocBalances().andrew - (parseFloat(db.opening.bocAndrew)||0);
+    db.opening.bocAndrew = desired - txPart;
+  } else if (key === 'bg') {
+    const txPart = bocBalances().gloria - (parseFloat(db.opening.bocGloria)||0);
+    db.opening.bocGloria = desired - txPart;
+  } else if (key === 'bi') {
+    const txPart = bocBalances().interest - (parseFloat(db.opening.bocInterest)||0);
+    db.opening.bocInterest = desired - txPart;
+  } else if (key === 'bb') {
+    const txSum = db.boc.reduce((s,t)=>s+(parseFloat(t.amount)||0), 0);
+    db.opening.bocBalance = desired - txSum;
+  }
+
+  save();
+  renderSettings();
+  renderBOC();
+  const labels = {ba:'Andrew BOC', bg:'Gloria BOC', bi:'Interest', bb:'Account Balance'};
+  alert(labels[key] + ' updated to HKD ' + fmtN(desired) + '.');
+}
+function renderCatList(type) {
+  document.getElementById('cat-'+type).innerHTML =
+    (db.cats[type]||[]).map((c,i)=>`<span class="cat-chip">${c}<button onclick="removeCat('${type}',${i})">×</button></span>`).join('');
+}
+function addCat(type) {
+  const inp = document.getElementById('new-'+type);
+  const v = inp.value.trim();
+  if (!v) return;
+  if (!db.cats[type].includes(v)) { db.cats[type].push(v); save(); renderCatList(type); }
+  inp.value='';
+}
+function removeCat(type,idx) { db.cats[type].splice(idx,1); save(); renderCatList(type); }
+function saveOpeningBalances() {
+  const a=parseFloat(document.getElementById('ob-andrew').value),
+        g=parseFloat(document.getElementById('ob-gloria').value),
+        i=parseFloat(document.getElementById('ob-interest').value),
+        b=parseFloat(document.getElementById('ob-boc').value);
+  if([a,g,i,b].some(isNaN)) { alert('Enter valid numbers.'); return; }
+  db.opening={andrew:a,gloria:g,interest:i,bocBalance:b};
+  save(); renderDashboard(); renderBOC();
+  alert('Saved.');
+}
+
+// ══════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════
+let mtype=null;
+function openModal(type) {
+  mtype=type;
+  document.getElementById('modal-body').innerHTML=buildModal(type);
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('f-date').value=today();
+  // Seed default category + populate subcategory datalist
+  const dbType = type==='nonboc'?'nonboc':type==='grocery'?'grocery':'boc';
+  const firstCat = (db.cats[dbType]||[])[0]||'';
+  const catInp = document.getElementById('f-cat');
+  if (catInp && firstCat) { catInp.value = firstCat; onCatChange(dbType); }
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); mtype=null; }
+function bgClose(e)   { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
+
+function paidHtml() {
+  return `<div class="form-row" id="paid-by-row"><label>Paid By</label>
+    <div class="paid-toggle" id="ptgl">
+      <button type="button" class="pt-btn s-a" data-v="andrew" onclick="setPaid(this)">Andrew</button>
+      <button type="button" class="pt-btn"     data-v="gloria" onclick="setPaid(this)">Gloria</button>
+      <button type="button" class="pt-btn"     data-v="both"   onclick="setPaid(this)">Both</button>
+    </div></div>`;
+}
+function setPaid(btn) {
+  btn.closest('.paid-toggle').querySelectorAll('.pt-btn').forEach(b=>b.classList.remove('s-a','s-g','s-b'));
+  btn.classList.add('s-'+btn.dataset.v[0]);
+}
+function getPaid() {
+  const b=document.querySelector('.pt-btn.s-a, .pt-btn.s-g, .pt-btn.s-b');
+  return b?b.dataset.v:'both';
+}
+function cOpts(type) {
+  return (db.cats[type]||[]).map(c=>`<option>${c}</option>`).join('');
+}
+function catRowHtml(type) {
+  const opts = (db.cats[type]||[]).map(c=>`<option value="${c}">`).join('');
+  return `<div class="form-row"><label>Category</label>
+    <input type="text" id="f-cat" list="f-cat-dl" placeholder="Select or type new..." autocomplete="off"
+      oninput="onCatChange('${type}')" onchange="onCatChange('${type}')">
+    <datalist id="f-cat-dl">${opts}</datalist></div>`;
+}
+// ── Subcategory helpers (3-level: cat → subcat → subsubcat) ──────
+function getSubcats(type, cat) {
+  return Object.keys((db.subcats?.[type]?.[cat])||{});
+}
+function getSubSubcats(type, cat, subcat) {
+  return (db.subcats?.[type]?.[cat]?.[subcat])||[];
+}
+function _ensureSubcatObj(type, cat) {
+  if (!db.subcats)            db.subcats={boc:{},nonboc:{},grocery:{}};
+  if (!db.subcats[type])      db.subcats[type]={};
+  if (!db.subcats[type][cat]||Array.isArray(db.subcats[type][cat])) db.subcats[type][cat]={};
+}
+function _saveSubcat(type, cat, v) {
+  if (!v) return false;
+  _ensureSubcatObj(type, cat);
+  if (db.subcats[type][cat][v]!==undefined) return false; // duplicate
+  db.subcats[type][cat][v] = [];
+  save(); return true;
+}
+function _saveSubSubcat(type, cat, subcat, v) {
+  if (!v) return false;
+  _saveSubcat(type, cat, subcat); // ensure parent exists
+  const arr = db.subcats[type][cat][subcat];
+  if (arr.includes(v)) return false; // duplicate
+  arr.push(v);
+  save(); return true;
+}
+
+// ── Modal row builders ───────────────────────────────────────────
+function subcatRowHtml() {
+  return `<div class="form-row"><label>Subcategory <span style="font-size:.7rem;color:var(--text3);font-weight:400">(optional)</span></label>
+    <input type="text" id="f-subcat" list="f-subcat-dl" placeholder="Select or type new..." autocomplete="off"
+      oninput="onSubcatChange()" onchange="onSubcatChange()">
+    <datalist id="f-subcat-dl"></datalist></div>`;
+}
+function subSubcatRowHtml() {
+  return `<div class="form-row"><label>Sub-subcategory <span style="font-size:.7rem;color:var(--text3);font-weight:400">(optional)</span></label>
+    <input type="text" id="f-subsubcat" list="f-subsubcat-dl" placeholder="Select or type new..." autocomplete="off">
+    <datalist id="f-subsubcat-dl"></datalist></div>`;
+}
+function onCatChange(type) {
+  const cat    = document.getElementById('f-cat')?.value;
+  const dl     = document.getElementById('f-subcat-dl');
+  const dl2    = document.getElementById('f-subsubcat-dl');
+  const inp2   = document.getElementById('f-subsubcat');
+  if (dl)  dl.innerHTML  = getSubcats(type, cat).map(s=>`<option value="${s}">`).join('');
+  if (dl2) dl2.innerHTML = '';
+  if (inp2) inp2.value   = '';
+  if (type==='grocery') onMoxCat();
+  // Hide Paid By for Interest (goes to its own position, not Andrew/Gloria)
+  const paidRow = document.getElementById('paid-by-row');
+  if (paidRow) paidRow.style.display = (type === 'boc' && cat === 'Interest') ? 'none' : '';
+}
+function onSubcatChange() {
+  const type   = mtype==='nonboc'?'nonboc':mtype==='grocery'?'grocery':'boc';
+  const cat    = document.getElementById('f-cat')?.value;
+  const subcat = document.getElementById('f-subcat')?.value;
+  const dl     = document.getElementById('f-subsubcat-dl');
+  if (dl) dl.innerHTML = getSubSubcats(type, cat, subcat).map(s=>`<option value="${s}">`).join('');
+}
+
+// ── Settings subcategory management ─────────────────────────────
+function onScTypeChange() {
+  const type = document.getElementById('sc-type')?.value;
+  const sel  = document.getElementById('sc-cat');
+  if (!sel) return;
+  sel.innerHTML = (db.cats[type]||[]).map(c=>`<option value="${c}">${c}</option>`).join('');
+  onScCatChange();
+}
+function onScCatChange() {
+  renderSubcatList();
+  // Populate subcategory selector for 3rd level
+  const type = document.getElementById('sc-type')?.value;
+  const cat  = document.getElementById('sc-cat')?.value;
+  const sel  = document.getElementById('sc-subcat');
+  if (sel) sel.innerHTML = getSubcats(type, cat).map(s=>`<option value="${s}">${s}</option>`).join('');
+  renderSubSubcatList();
+}
+function renderSubcatList() {
+  const type = document.getElementById('sc-type')?.value;
+  const cat  = document.getElementById('sc-cat')?.value;
+  const el   = document.getElementById('subcat-list');
+  if (!el||!type||!cat) return;
+  const subcats = getSubcats(type, cat);
+  el.innerHTML = subcats.length
+    ? subcats.map(s=>`<span class="cat-chip">${s}<button onclick="removeSubcat('${type}','${s.replace(/'/g,"\\'")}')">×</button></span>`).join('')
+    : `<span style="font-size:.75rem;color:var(--text3)">No subcategories yet.</span>`;
+}
+function renderSubSubcatList() {
+  const type   = document.getElementById('sc-type')?.value;
+  const cat    = document.getElementById('sc-cat')?.value;
+  const subcat = document.getElementById('sc-subcat')?.value;
+  const el     = document.getElementById('subsubcat-list');
+  if (!el) return;
+  if (!subcat) { el.innerHTML=`<span style="font-size:.75rem;color:var(--text3)">Select a subcategory above.</span>`; return; }
+  const sub2s = getSubSubcats(type, cat, subcat);
+  el.innerHTML = sub2s.length
+    ? sub2s.map((s,i)=>`<span class="cat-chip">${s}<button onclick="removeSubSubcat('${type}','${subcat.replace(/'/g,"\\'")}',${i})">×</button></span>`).join('')
+    : `<span style="font-size:.75rem;color:var(--text3)">No sub-subcategories yet.</span>`;
+}
+function addSubcat() {
+  const type = document.getElementById('sc-type')?.value;
+  const cat  = document.getElementById('sc-cat')?.value;
+  const inp  = document.getElementById('new-subcat');
+  const v    = inp?.value.trim();
+  if (!v||!type||!cat) return;
+  _saveSubcat(type, cat, v);
+  if (inp) inp.value='';
+  onScCatChange();
+}
+function removeSubcat(type, subcat) {
+  const cat = document.getElementById('sc-cat')?.value;
+  if (db.subcats?.[type]?.[cat]?.[subcat]!==undefined) {
+    delete db.subcats[type][cat][subcat];
+    save(); onScCatChange();
+  }
+}
+function addSubSubcat() {
+  const type   = document.getElementById('sc-type')?.value;
+  const cat    = document.getElementById('sc-cat')?.value;
+  const subcat = document.getElementById('sc-subcat')?.value;
+  const inp    = document.getElementById('new-subsubcat');
+  const v      = inp?.value.trim();
+  if (!v||!type||!cat||!subcat) return;
+  _saveSubSubcat(type, cat, subcat, v);
+  if (inp) inp.value='';
+  renderSubSubcatList();
+}
+function removeSubSubcat(type, subcat, idx) {
+  const cat = document.getElementById('sc-cat')?.value;
+  if (!db.subcats?.[type]?.[cat]?.[subcat]) return;
+  db.subcats[type][cat][subcat].splice(idx,1);
+  save(); renderSubSubcatList();
+}
+
+function buildModal(type) {
+  const dateAmt = `<div class="fg2">
+    <div class="form-row"><label>Date</label><input type="date" id="f-date"></div>
+    <div class="form-row"><label>Amount (HKD)</label>
+      <input type="number" id="f-amount" step="0.01" placeholder="+19000 or −24000">
+      <div class="ah">+ incoming · − outgoing</div>
+    </div></div>`;
+
+  if (type==='boc') return `<h3>Add BOC Transaction</h3>${dateAmt}
+    ${catRowHtml('boc')}
+    ${subcatRowHtml()}
+    ${subSubcatRowHtml()}
+    ${paidHtml()}
+    <div class="form-row"><label>Notes</label><input type="text" id="f-notes" placeholder="Optional"></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="saveEntry()">Save</button></div>`;
+
+  if (type==='nonboc') return `<h3>Add Non-BOC Payment</h3>${dateAmt}
+    ${catRowHtml('nonboc')}
+    ${subcatRowHtml()}
+    ${subSubcatRowHtml()}
+    ${paidHtml()}
+    <div class="form-row"><label>Notes</label><input type="text" id="f-notes" placeholder="Optional"></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="saveEntry()">Save</button></div>`;
+
+  const grocDateAmt = `<div class="fg2">
+    <div class="form-row"><label>Date</label><input type="date" id="f-date"></div>
+    <div class="form-row"><label>Amount (HKD)</label>
+      <input type="number" id="f-amount" step="0.01" placeholder="+19000 or −24000" oninput="onMoxAmt()">
+      <div class="ah">+ incoming · − outgoing</div>
+    </div></div>`;
+
+  if (type==='grocery') return `<h3>Add Grocery / Food Entry</h3>${grocDateAmt}
+    ${catRowHtml('grocery')}
+    ${subcatRowHtml()}
+    ${subSubcatRowHtml()}
+    <div id="mox-discount" style="display:none" class="mox-box">
+      <div class="mox-header"><span class="mox-badge">MOX</span><span class="mox-title">3% Cashback Discount Applied</span></div>
+      <div class="mox-row"><span class="mox-key">Receipt amount</span><span class="mox-val" id="mox-orig">—</span></div>
+      <div class="mox-row"><span class="mox-key">Discount (−3%)</span><span class="mox-val" id="mox-save">—</span></div>
+      <hr class="mox-divider">
+      <div class="mox-final-row"><span class="mox-key">Amount to be saved</span><span class="mox-final-val" id="mox-final">—</span></div>
+    </div>
+    ${paidHtml()}
+    <div class="form-row"><label>Helper's Food?</label>
+      <div class="check-row" onclick="document.getElementById('f-helper').click()">
+        <input type="checkbox" id="f-helper" onclick="event.stopPropagation()">
+        <span class="ck-lbl">Mark as Helper Food — tracked separately</span>
+      </div></div>
+    <div class="form-row"><label>Notes</label><input type="text" id="f-notes" placeholder="Optional"></div>
+    <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="saveEntry()">Save</button></div>`;
+}
+
+// ── MOX DISCOUNT HELPERS ──
+const MOX_CAT = 'Groceries & Supplies (Mox)';
+function onMoxCat() {
+  const cat = document.getElementById('f-cat')?.value;
+  const box = document.getElementById('mox-discount');
+  if (!box) return;
+  if (cat === MOX_CAT) { box.style.display='block'; onMoxAmt(); }
+  else box.style.display='none';
+}
+function onMoxAmt() {
+  const cat = document.getElementById('f-cat')?.value;
+  const box = document.getElementById('mox-discount');
+  if (!box || cat !== MOX_CAT) return;
+  const raw = parseFloat(document.getElementById('f-amount')?.value);
+  if (isNaN(raw)) {
+    document.getElementById('mox-orig').textContent  = '—';
+    document.getElementById('mox-save').textContent  = '—';
+    document.getElementById('mox-final').textContent = '—';
+    return;
+  }
+  const abs   = Math.abs(raw);
+  const disc  = abs * 0.03;
+  const final = abs * 0.97;
+  const sign  = raw < 0 ? '−' : '+';
+  document.getElementById('mox-orig').textContent  = sign + 'HKD ' + fmtN(abs);
+  document.getElementById('mox-save').textContent  = '−HKD ' + fmtN(disc);
+  document.getElementById('mox-final').textContent = sign + 'HKD ' + fmtN(final);
+}
+
+function saveEntry() {
+  const date   = document.getElementById('f-date')?.value;
+  const amount = parseFloat(document.getElementById('f-amount')?.value);
+  const cat    = document.getElementById('f-cat')?.value;
+  const notes  = (document.getElementById('f-notes')?.value||'').trim();
+  const isInterest = (mtype === 'boc' && cat === 'Interest');
+  const paidBy = isInterest ? null : getPaid();
+  const isHelper = document.getElementById('f-helper')?.checked||false;
+
+  if (!date)         { alert('Enter a date.');   return; }
+  if (isNaN(amount)) { alert('Enter an amount.'); return; }
+
+  const subcat    = (document.getElementById('f-subcat')?.value||'').trim();
+  const subsubcat = (document.getElementById('f-subsubcat')?.value||'').trim();
+  const dbType = mtype==='boc'?'boc':mtype==='nonboc'?'nonboc':'grocery';
+  // Auto-add new entries at each level (no duplicates)
+  if (cat && !(db.cats[dbType]||[]).includes(cat)) { if (!db.cats[dbType]) db.cats[dbType]=[]; db.cats[dbType].push(cat); }
+  if (subcat)              _saveSubcat(dbType, cat, subcat);
+  if (subcat && subsubcat) _saveSubSubcat(dbType, cat, subcat, subsubcat);
+  const e = {id:uid(), date, amount, notes};
+  if (!isInterest) e.paidBy = paidBy;
+  if (subcat)    e.subcategory    = subcat;
+  if (subsubcat) e.subsubcategory = subsubcat;
+  if (mtype==='boc')     { e.category=cat; db.boc.push(e); renderBOC(); }
+  else if (mtype==='nonboc')  { e.category=cat; db.nonBoc.push(e); renderNonBOC(); }
+  else if (mtype==='grocery') {
+    e.category = cat;
+    e.isHelper = isHelper;
+    // Apply Mox 3% cashback discount
+    if (cat === MOX_CAT) {
+      const sign = amount < 0 ? -1 : 1;
+      e.amount = parseFloat((sign * Math.abs(amount) * 0.97).toFixed(2));
+    }
+    db.groceries.push(e); renderGroceries();
+  }
+  save(); renderDashboard(); closeModal();
+}
+
+// ══════════════════════════════════════
+//  SETTLE
+// ══════════════════════════════════════
+function settle() {
+  document.getElementById('modal-body').innerHTML = `
+    <h3>Settle Positions</h3>
+    <div class="form-row" style="margin-bottom:12px"><label>Date Settled</label>
+      <input type="date" id="settle-date-inp" value="${today()}" oninput="onSettleDateChange()" onchange="onSettleDateChange()"></div>
+    <div id="settle-preview"></div>
+    <p style="font-size:.74rem;color:var(--text3);margin:8px 0 0">Positions reset to 0 as of the chosen date. Expenses after that date carry forward. Can be undone.</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="confirmSettle()">Confirm Settle</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  onSettleDateChange();
+}
+function onSettleDateChange() {
+  const date = document.getElementById('settle-date-inp')?.value || today();
+  const {andrew, gloria} = calcPositions(date);
+  const diff = andrew - gloria;
+  const dirMsg = Math.abs(diff)<0.01 ? 'Positions balanced as of this date.'
+    : diff>0 ? `Gloria pays Andrew  HKD ${fmtN(diff/2,false)}`
+    : `Andrew pays Gloria  HKD ${fmtN(Math.abs(diff)/2,false)}`;
+  const el = document.getElementById('settle-preview');
+  if (el) el.innerHTML = `
+    <div class="settle-preview-box">
+      <div class="sp-row"><span class="sp-lbl">Andrew (as of ${date})</span><span class="sp-val ${andrew>=0?'ap':'an'}">${fmtN(andrew)}</span></div>
+      <div class="sp-row"><span class="sp-lbl">Gloria (as of ${date})</span><span class="sp-val ${gloria>=0?'ap':'an'}">${fmtN(gloria)}</span></div>
+      <div class="sp-dir">${dirMsg}</div>
+    </div>`;
+}
+function confirmSettle() {
+  const date = document.getElementById('settle-date-inp')?.value || today();
+  const {andrew, gloria} = calcPositions(date); // Only transactions up to settlement date
+  const record = { id:uid(), date, andrewBefore:andrew, gloriaBefore:gloria,
+    prevOpeningAndrew:db.opening.andrew, prevOpeningGloria:db.opening.gloria,
+    undone:false, undoneDate:null };
+  const txAndrew = andrew - (parseFloat(db.opening.andrew)||0);
+  const txGloria = gloria - (parseFloat(db.opening.gloria)||0);
+  db.opening.andrew = -txAndrew;
+  db.opening.gloria = -txGloria;
+  db.settlements.push(record);
+  save(); closeModal(); renderDashboard(); renderSettlements();
+}
+
+function undoSettle() {
+  const last = (db.settlements||[]).slice().reverse().find(s=>!s.undone);
+  if (!last) { alert('No settlement to undo.'); return; }
+
+  const msg = `Undo settlement from ${last.date}?\n\nThis will restore positions to:\nAndrew:  HKD ${fmtN(last.andrewBefore)}\nGloria:  HKD ${fmtN(last.gloriaBefore)}\n\nThis will be logged.`;
+  if (!confirm(msg)) return;
+
+  last.undone    = true;
+  last.undoneDate = today();
+
+  // Restore pre-settlement opening values
+  db.opening.andrew = last.prevOpeningAndrew;
+  db.opening.gloria = last.prevOpeningGloria;
+
+  save();
+  renderDashboard();
+  renderSettlements();
+}
+
+function renderSettlements() {
+  const tbody = document.getElementById('settle-tbody');
+  if (!tbody) return;
+
+  if (!db.settlements || db.settlements.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="slog-empty">No settlements yet.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = db.settlements.slice().reverse().map(s => {
+    const diff = s.andrewBefore - s.gloriaBefore;
+    let dir = '—';
+    if (Math.abs(diff) >= 0.01) {
+      if (diff > 0) dir = `<span class="settle-dir">Gloria → Andrew<br>HKD ${fmtN(diff/2, false)}</span>`;
+      else          dir = `<span class="settle-dir">Andrew → Gloria<br>HKD ${fmtN(Math.abs(diff)/2, false)}</span>`;
+    } else {
+      dir = '<span style="color:#10b981;font-weight:700">Balanced ✓</span>';
+    }
+    const statusBadge = s.undone
+      ? `<span class="badge-undone">Undone ${s.undoneDate}</span>`
+      : `<span class="badge-settled">Settled</span>`;
+    const rowClass = s.undone ? 'row-undone' : '';
+    return `<tr class="${rowClass}">
+      <td>${fmtD(s.date)}</td>
+      <td class="${aC(s.andrewBefore)}">${fmtN(s.andrewBefore)}</td>
+      <td class="${aC(s.gloriaBefore)}">${fmtN(s.gloriaBefore)}</td>
+      <td>${dir}</td>
+      <td>${statusBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+//  DELETE
+// ══════════════════════════════════════
+function del(section, id) {
+  if (!confirm('Delete this entry?')) return;
+  db[section]=db[section].filter(t=>t.id!==id);
+  save(); renderAll();
+}
+
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+// ══════════════════════════════════════
+//  TRIPS
+// ══════════════════════════════════════
+function calcTripPositions(tripId, cutoffDate) {
+  const trip = (db.trips||[]).find(t=>t.id===tripId);
+  if (!trip) return {andrew:0, gloria:0};
+  let andrew = parseFloat(trip.openingAndrew)||0;
+  let gloria = parseFloat(trip.openingGloria)||0;
+  for (const e of (db.tripExpenses||[]).filter(e=>e.tripId===tripId)) {
+    if (cutoffDate && (e.date||'') > cutoffDate) continue;
+    const abs = Math.abs(parseFloat(e.amount)||0);
+    if (e.paidBy==='andrew')      { andrew+=abs/2; gloria-=abs/2; }
+    else if (e.paidBy==='gloria') { gloria+=abs/2; andrew-=abs/2; }
+  }
+  return {andrew, gloria};
+}
+
+function renderTrips() {
+  const container = document.getElementById('trips-container');
+  if (!container) return;
+  if (!(db.trips||[]).length) {
+    container.innerHTML = `<div class="card"><div class="empty"><div class="ei">✈️</div><p>No trips yet. Click <strong>+ New Trip</strong> to get started.</p></div></div>`;
+    return;
+  }
+  container.innerHTML = db.trips.map(trip => {
+    const {andrew, gloria} = calcTripPositions(trip.id);
+    const diff = andrew - gloria;
+    let settleDir;
+    if (Math.abs(diff) < 0.01) settleDir = '<span style="color:#34d399;font-weight:800">Balanced ✓</span>';
+    else if (diff > 0)          settleDir = `<span class="settle-dir" style="font-size:.78rem">Gloria → Andrew<br>HKD ${fmtN(diff/2,false)}</span>`;
+    else                        settleDir = `<span class="settle-dir" style="font-size:.78rem">Andrew → Gloria<br>HKD ${fmtN(Math.abs(diff)/2,false)}</span>`;
+
+    const lastSettle = (trip.settlements||[]).slice().reverse().find(s=>!s.undone);
+    const exps = (db.tripExpenses||[]).filter(e=>e.tripId===trip.id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+    const tbodyRows = exps.length ? exps.map(e=>`
+      <tr class="${e.paidBy==='andrew'?'tr-a':e.paidBy==='gloria'?'tr-g':'tr-b'}">
+        <td>${fmtD(e.date)}</td>
+        <td>${e.description||'—'}</td>
+        <td>${e.category||'—'}</td>
+        <td class="num ${aC(e.amount)}">${fmtN(parseFloat(e.amount))}</td>
+        <td>${pb(e.paidBy)}</td>
+        <td><button class="del-btn" onclick="delTripExpense('${e.id}','${trip.id}')">✕</button></td>
+      </tr>`).join('') :
+      `<tr><td colspan="6"><div class="empty" style="padding:20px"><p>No expenses yet.</p></div></td></tr>`;
+
+    const totalSpend = exps.reduce((s,e)=>s+Math.abs(parseFloat(e.amount)||0),0);
+
+    const settleLogHtml = (trip.settlements||[]).length ? `
+      <hr class="trip-section-divider">
+      <div class="trip-sub-title">Settlement History</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Date</th><th>Andrew Before</th><th>Gloria Before</th><th>Direction</th><th>Status</th></tr></thead>
+        <tbody>${(trip.settlements||[]).slice().reverse().map(s=>{
+          const d=s.andrewBefore-s.gloriaBefore;
+          const dir=d>0.01?`Gloria→Andrew HKD ${fmtN(d/2,false)}`:d<-0.01?`Andrew→Gloria HKD ${fmtN(Math.abs(d)/2,false)}`:'Balanced';
+          return `<tr class="${s.undone?'row-undone':''}">
+            <td>${fmtD(s.date)}</td>
+            <td class="${aC(s.andrewBefore)}">${fmtN(s.andrewBefore)}</td>
+            <td class="${aC(s.gloriaBefore)}">${fmtN(s.gloriaBefore)}</td>
+            <td><span class="settle-dir">${dir}</span></td>
+            <td>${s.undone?`<span class="badge-undone">Undone ${s.undoneDate}</span>`:'<span class="badge-settled">Settled</span>'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>` : '';
+
+    const catsHtml = `
+      <hr class="trip-section-divider">
+      <div class="trip-sub-title">Categories</div>
+      <div class="cat-list">${(trip.cats||[]).map((c,i)=>`<span class="cat-chip">${c}<button onclick="removeTripCat('${trip.id}',${i})">×</button></span>`).join('')}</div>
+      <div class="cat-add" style="margin-top:8px">
+        <input type="text" id="new-trip-cat-${trip.id}" placeholder="New category">
+        <button onclick="addTripCat('${trip.id}')">Add</button>
+      </div>`;
+
+    const dateRange = [trip.startDate?fmtD(trip.startDate):'', trip.endDate?fmtD(trip.endDate):''].filter(Boolean).join(' — ');
+
+    return `<div class="card" id="trip-card-${trip.id}">
+      <div class="trip-card-head">
+        <div>
+          <div class="trip-name">${trip.name}</div>
+          ${dateRange?`<div class="trip-dates">${dateRange}</div>`:''}
+        </div>
+        <div class="trip-head-actions">
+          <button class="trip-settle-btn" onclick="settleTrip('${trip.id}')">SETTLE</button>
+          ${lastSettle?`<button class="trip-undo-btn" onclick="undoTripSettle('${trip.id}')">UNDO</button>`:''}
+          <button class="trip-del-btn" onclick="deleteTrip('${trip.id}')">DELETE</button>
+        </div>
+      </div>
+      <div class="trip-pos-bar">
+        <div class="trip-pos-pill"><span class="tp-lbl">Andrew</span><span class="tp-val ${andrew>=0?'ap':'an'}">${fmtN(andrew)}</span></div>
+        <div class="trip-pos-pill"><span class="tp-lbl">Gloria</span><span class="tp-val ${gloria>=0?'ap':'an'}">${fmtN(gloria)}</span></div>
+        <div class="trip-pos-pill"><span class="tp-lbl">To Settle</span><span class="tp-val">${settleDir}</span></div>
+        <div class="trip-pos-pill"><span class="tp-lbl">Total Spend</span><span class="tp-val">HKD ${fmtN(totalSpend,false)}</span></div>
+      </div>
+      <div class="tbl-header" style="margin-bottom:12px">
+        <h2 style="font-size:.88rem">Expenses</h2>
+        <button class="add-btn" style="font-size:.76rem;padding:7px 14px" onclick="openTripExpenseModal('${trip.id}')">＋ Add Expense</button>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Date</th><th>Description</th><th>Category</th><th class="th-r">Amount</th><th>Paid By</th><th></th></tr></thead>
+        <tbody>${tbodyRows}</tbody>
+      </table></div>
+      ${settleLogHtml}
+      ${catsHtml}
+    </div>`;
+  }).join('');
+}
+
+function settleTrip(tripId) {
+  const trip = (db.trips||[]).find(t=>t.id===tripId);
+  if (!trip) return;
+  document.getElementById('modal-body').innerHTML = `
+    <h3>Settle — ${trip.name}</h3>
+    <div class="form-row" style="margin-bottom:12px"><label>Date Settled</label>
+      <input type="date" id="settle-date-inp" value="${today()}"
+        oninput="onTripSettleDateChange('${tripId}')" onchange="onTripSettleDateChange('${tripId}')"></div>
+    <div id="settle-preview"></div>
+    <p style="font-size:.74rem;color:var(--text3);margin:8px 0 0">Positions reset to 0 as of the chosen date. Expenses after that date carry forward. Can be undone.</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="confirmTripSettle('${tripId}')">Confirm Settle</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  onTripSettleDateChange(tripId);
+}
+function onTripSettleDateChange(tripId) {
+  const date = document.getElementById('settle-date-inp')?.value || today();
+  const {andrew, gloria} = calcTripPositions(tripId, date);
+  const diff = andrew - gloria;
+  const dirMsg = Math.abs(diff)<0.01 ? 'Positions balanced as of this date.'
+    : diff>0 ? `Gloria pays Andrew  HKD ${fmtN(diff/2,false)}`
+    : `Andrew pays Gloria  HKD ${fmtN(Math.abs(diff)/2,false)}`;
+  const el = document.getElementById('settle-preview');
+  if (el) el.innerHTML = `
+    <div class="settle-preview-box">
+      <div class="sp-row"><span class="sp-lbl">Andrew (as of ${date})</span><span class="sp-val ${andrew>=0?'ap':'an'}">${fmtN(andrew)}</span></div>
+      <div class="sp-row"><span class="sp-lbl">Gloria (as of ${date})</span><span class="sp-val ${gloria>=0?'ap':'an'}">${fmtN(gloria)}</span></div>
+      <div class="sp-dir">${dirMsg}</div>
+    </div>`;
+}
+function confirmTripSettle(tripId) {
+  const trip = (db.trips||[]).find(t=>t.id===tripId);
+  if (!trip) return;
+  const date = document.getElementById('settle-date-inp')?.value || today();
+  const {andrew, gloria} = calcTripPositions(tripId, date); // Only transactions up to settlement date
+  const txA = andrew - (parseFloat(trip.openingAndrew)||0);
+  const txG = gloria - (parseFloat(trip.openingGloria)||0);
+  const record = { id:uid(), date, andrewBefore:andrew, gloriaBefore:gloria,
+    prevOpeningAndrew:trip.openingAndrew||0, prevOpeningGloria:trip.openingGloria||0,
+    undone:false, undoneDate:null };
+  trip.openingAndrew = -txA;
+  trip.openingGloria = -txG;
+  if (!trip.settlements) trip.settlements=[];
+  trip.settlements.push(record);
+  save(); closeModal(); renderTrips();
+}
+
+function undoTripSettle(tripId) {
+  const trip = (db.trips||[]).find(t=>t.id===tripId);
+  if (!trip) return;
+  const last = (trip.settlements||[]).slice().reverse().find(s=>!s.undone);
+  if (!last) { alert('No settlement to undo.'); return; }
+  if (!confirm(`Undo settlement from ${last.date} for "${trip.name}"?`)) return;
+  last.undone = true; last.undoneDate = today();
+  trip.openingAndrew = last.prevOpeningAndrew;
+  trip.openingGloria = last.prevOpeningGloria;
+  save(); renderTrips();
+}
+
+function deleteTrip(tripId) {
+  const trip = (db.trips||[]).find(t=>t.id===tripId);
+  if (!trip) return;
+  const count = (db.tripExpenses||[]).filter(e=>e.tripId===tripId).length;
+  if (!confirm(`Delete "${trip.name}"${count?' and its '+count+' expense(s)':''}?\nThis cannot be undone.`)) return;
+  db.trips        = db.trips.filter(t=>t.id!==tripId);
+  db.tripExpenses = db.tripExpenses.filter(e=>e.tripId!==tripId);
+  save(); renderTrips(); renderDashboard();
+}
+
+function addTripCat(tripId) {
+  const trip = (db.trips||[]).find(t=>t.id===tripId);
+  if (!trip) return;
+  const inp = document.getElementById('new-trip-cat-'+tripId);
+  const v = inp?.value.trim();
+  if (!v) return;
+  if (!trip.cats) trip.cats=[];
+  if (!trip.cats.includes(v)) { trip.cats.push(v); save(); renderTrips(); }
+}
+function removeTripCat(tripId, idx) {
+  const trip = (db.trips||[]).find(t=>t.id===tripId);
+  if (!trip||!trip.cats) return;
+  trip.cats.splice(idx,1); save(); renderTrips();
+}
+
+// ── Trip modals ──
+function openNewTripModal() {
+  document.getElementById('modal-body').innerHTML = `
+    <h3>New Trip</h3>
+    <div class="form-row"><label>Trip Name</label><input type="text" id="trip-name-inp" placeholder="e.g. Japan 2026" autofocus></div>
+    <div class="fg2">
+      <div class="form-row"><label>Start Date</label><input type="date" id="trip-start-inp"></div>
+      <div class="form-row"><label>End Date</label><input type="date" id="trip-end-inp"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveNewTrip()">Create Trip</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function saveNewTrip() {
+  const name = document.getElementById('trip-name-inp')?.value.trim();
+  if (!name) { alert('Enter a trip name.'); return; }
+  const trip = {
+    id:uid(), name,
+    startDate: document.getElementById('trip-start-inp')?.value||'',
+    endDate:   document.getElementById('trip-end-inp')?.value||'',
+    cats:['Accommodation','Food & Drink','Transport','Activities','Shopping','Other'],
+    openingAndrew:0, openingGloria:0, settlements:[]
+  };
+  db.trips.push(trip);
+  save(); closeModal(); renderTrips();
+}
+
+function openTripExpenseModal(tripId) {
+  const trip = (db.trips||[]).find(t=>t.id===tripId);
+  if (!trip) return;
+  const cats = trip.cats||['Accommodation','Food & Drink','Transport','Activities','Shopping','Other'];
+  document.getElementById('modal-body').innerHTML = `
+    <h3>Add Expense — ${trip.name}</h3>
+    <div class="fg2">
+      <div class="form-row"><label>Date</label><input type="date" id="te-date" value="${today()}"></div>
+      <div class="form-row"><label>Amount (HKD, −ve = expense)</label><input type="number" id="te-amount" step="0.01" placeholder="-1200.00"></div>
+    </div>
+    <div class="form-row"><label>Description</label><input type="text" id="te-desc" placeholder="e.g. Hotel Night 1"></div>
+    <div class="form-row"><label>Category</label><select id="te-cat">${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
+    ${paidHtml()}
+    <div class="form-row"><label>Notes (optional)</label><input type="text" id="te-notes"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveTripExpense('${tripId}')">Add</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  const firstBtn = document.querySelector('#ptgl .pt-btn[data-v="andrew"]');
+  if (firstBtn) setPaid(firstBtn);
+}
+
+function saveTripExpense(tripId) {
+  const date   = document.getElementById('te-date')?.value;
+  const amount = parseFloat(document.getElementById('te-amount')?.value);
+  const desc   = document.getElementById('te-desc')?.value.trim()||'';
+  const cat    = document.getElementById('te-cat')?.value||'Other';
+  const notes  = document.getElementById('te-notes')?.value.trim()||'';
+  const paidBy = getPaid();
+  if (!date)       { alert('Pick a date.'); return; }
+  if (isNaN(amount)) { alert('Enter a valid amount.'); return; }
+  if (!db.tripExpenses) db.tripExpenses=[];
+  db.tripExpenses.push({id:uid(), tripId, date, description:desc, category:cat, amount, paidBy, notes});
+  save(); closeModal(); renderTrips(); renderDashboard();
+}
+
+function delTripExpense(expId) {
+  if (!confirm('Delete this expense?')) return;
+  db.tripExpenses=(db.tripExpenses||[]).filter(e=>e.id!==expId);
+  save(); renderTrips(); renderDashboard();
+}
+
+function applyMigrations() {
+  if (!db.cats)                           { db.cats={boc:[...D_BOC],nonboc:[...D_NBOC],grocery:[...D_GROC]}; }
+  if (db.opening.bocBalance===undefined)  { db.opening.bocBalance=-6767.01; }
+  if (!db.settlements)                    { db.settlements=[]; }
+  if (db.opening.bocAndrew===undefined)   { db.opening.bocAndrew=0; }
+  if (db.opening.bocGloria===undefined)   { db.opening.bocGloria=0; }
+  if (db.opening.bocInterest===undefined) { db.opening.bocInterest=0; }
+  if (!db.trips)                          { db.trips=[]; }
+  if (!db.tripExpenses)                   { db.tripExpenses=[]; }
+  if (!db.subcats) { db.subcats={boc:{},nonboc:{},grocery:{}}; }
+  // Migrate subcats from old array format to object format: {subcat:[sub2,..]}
+  for (const type of ['boc','nonboc','grocery']) {
+    if (!db.subcats[type]) { db.subcats[type]={}; continue; }
+    for (const cat of Object.keys(db.subcats[type])) {
+      if (Array.isArray(db.subcats[type][cat])) {
+        const arr = db.subcats[type][cat];
+        db.subcats[type][cat] = {};
+        for (const s of arr) db.subcats[type][cat][s] = [];
+      }
+    }
+  }
+}
+
+function renderAll() { renderDashboard(); renderBOC(); renderNonBOC(); renderGroceries(); renderSettlements(); }
+
+// ── Async startup ────────────────────────────────────────────────
+(async () => {
+  db = await initDB();
+  applyMigrations();
+  renderAll();
+})();
+
+// ══════════════════════════════════════
+//  THEME TOGGLE
+// ══════════════════════════════════════
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  localStorage.setItem('pano_theme', isLight ? 'light' : 'dark');
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = isLight ? '🌙' : '☀️';
+}
+// Restore saved theme
+(function() {
+  if (localStorage.getItem('pano_theme') === 'light') {
+    document.body.classList.add('light');
+    const btn = document.getElementById('theme-toggle-btn');
+    if (btn) btn.textContent = '🌙';
+  }
+})();
+</script>
+</body>
+</html>
