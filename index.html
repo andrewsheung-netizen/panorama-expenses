@@ -335,6 +335,20 @@ tbody tr:hover td { background:rgba(236,98,48,.06); }
   animation:mi .18s cubic-bezier(.34,1.56,.64,1);
 }
 @keyframes mi { from{opacity:0;transform:translateY(12px) scale(.95)} to{opacity:1;transform:none} }
+@keyframes ptr-spin { to { transform: rotate(360deg); } }
+/* Pull-to-refresh indicator — standalone PWA only */
+#ptr-indicator {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+  height: env(safe-area-inset-top, 50px);
+  align-items: flex-end; justify-content: center;
+  padding-bottom: 6px;
+  pointer-events: none;
+}
+html.standalone #ptr-indicator { display: flex; }
+#ptr-indicator svg { width: 20px; height: 20px; opacity: 0; transition: opacity 0.15s, transform 0.15s; }
+#ptr-indicator.ptr-loading svg { opacity: 1; animation: ptr-spin 0.75s linear infinite; }
+body.light #ptr-indicator svg { color: var(--text2); }
 .modal h3 { font-size:1.05rem; font-weight:800; color:white; margin-bottom:20px; letter-spacing:-.2px; }
 .form-row { margin-bottom:14px; }
 .form-row > label { display:block; font-size:.66rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:5px; }
@@ -1484,6 +1498,12 @@ body.light .field-err { color:#c33d22; }
 </style>
 </head>
 <body>
+<!-- Pull-to-refresh indicator (standalone PWA only) -->
+<div id="ptr-indicator" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+  </svg>
+</div>
 <nav id="main-nav" aria-label="Primary">
   <div class="nav-brand">
     <div class="nav-brand-icon" aria-hidden="true"></div>
@@ -6056,6 +6076,58 @@ document.addEventListener('keydown', e=>{
 if (window.navigator.standalone || window.matchMedia('(display-mode:standalone)').matches) {
   document.documentElement.classList.add('standalone');
 }
+</script>
+
+<!-- Pull-to-refresh (standalone PWA only) -->
+<script>
+(function() {
+  if (!document.documentElement.classList.contains('standalone')) return;
+  var ptr = document.getElementById('ptr-indicator');
+  var ptrSvg = ptr && ptr.querySelector('svg');
+  if (!ptr || !ptrSvg) return;
+
+  var startY = 0, pulling = false, refreshing = false;
+  var THRESHOLD = 72; // px to pull before triggering
+
+  document.addEventListener('touchstart', function(e) {
+    if (window.scrollY === 0 && !refreshing) {
+      startY = e.touches[0].pageY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e) {
+    if (!pulling || refreshing) return;
+    var dy = e.touches[0].pageY - startY;
+    if (dy > 0) {
+      var pct = Math.min(dy / THRESHOLD, 1);
+      ptrSvg.style.opacity = pct;
+      ptrSvg.style.transform = 'rotate(' + Math.round(pct * 200) + 'deg)';
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', async function(e) {
+    if (!pulling || refreshing) return;
+    pulling = false;
+    var dy = e.changedTouches[0].pageY - startY;
+    if (dy >= THRESHOLD) {
+      refreshing = true;
+      ptr.classList.add('ptr-loading');
+      ptrSvg.style.opacity = '';
+      ptrSvg.style.transform = '';
+      try {
+        db = await initDB();
+        applyMigrations();
+        renderAll();
+      } catch(err) { console.warn('PTR refresh failed', err); }
+      ptr.classList.remove('ptr-loading');
+      refreshing = false;
+    } else {
+      ptrSvg.style.opacity = '0';
+      ptrSvg.style.transform = '';
+    }
+  }, { passive: true });
+})();
 </script>
 
 <!-- Service Worker Registration -->
