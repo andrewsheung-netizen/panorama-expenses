@@ -1486,6 +1486,20 @@ body.light .field-err { color:#c33d22; }
 </head>
 <body>
 <div id="safe-top-spacer" aria-hidden="true"></div>
+<script>
+(function(){
+  // Probe safe-area-inset-top via padding (more reliably computed than height on iOS)
+  var probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:constant(safe-area-inset-top,0px);padding-top:env(safe-area-inset-top,0px);';
+  document.documentElement.appendChild(probe);
+  var h = parseFloat(window.getComputedStyle(probe).paddingTop) || 0;
+  document.documentElement.removeChild(probe);
+  var spacer = document.getElementById('safe-top-spacer');
+  if (spacer && h > 0) {
+    spacer.style.cssText = 'display:block;width:100%;height:' + h + 'px;background:var(--bg);flex-shrink:0;';
+  }
+})();
+</script>
 
 <nav id="main-nav" aria-label="Primary">
   <div class="nav-brand">
