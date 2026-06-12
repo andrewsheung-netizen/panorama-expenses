@@ -56,6 +56,7 @@ body {
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* ══ DOT GRID ══ */
@@ -73,7 +74,7 @@ nav {
   -webkit-backdrop-filter: blur(20px);
   display: flex; align-items: stretch; padding: 0 24px;
   box-shadow: 0 1px 0 var(--border2), 0 8px 32px rgba(0,0,0,.55);
-  position: sticky; top: 0; z-index: 50;
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50;
   border-bottom: 1px solid var(--border);
 }
 .nav-brand { display:flex; align-items:center; gap:10px; padding-right:22px; margin-right:8px; border-right:1px solid var(--border); }
@@ -1345,7 +1346,7 @@ body.light .field-err { color:#c33d22; }
   /* Slim sticky bar: range chip (left) + settle/undo (right) */
   .dash-mfilter-bar {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    position: sticky; top: 0; z-index: 31;
+    position: sticky; top: calc(56px + env(safe-area-inset-top, 0px)); z-index: 31;
     margin: 6px -12px 12px; padding: 9px 12px;
     background: rgba(20,24,16,.82);
     backdrop-filter: blur(14px) saturate(1.05); -webkit-backdrop-filter: blur(14px) saturate(1.05);
@@ -1431,7 +1432,7 @@ body.light .field-err { color:#c33d22; }
   .tab-top-anchor { position: static; margin: 0; padding: 0; border-radius: 0; box-shadow: none; }
   .tab-mbar {
     display: flex; align-items: center; gap: 10px;
-    position: sticky; top: 0; z-index: 31;
+    position: sticky; top: calc(56px + env(safe-area-inset-top, 0px)); z-index: 31;
     margin: 0 0 10px; padding: 9px 0 10px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
@@ -1475,14 +1476,6 @@ body.light .field-err { color:#c33d22; }
   }
 }
 </style>
-<script>
-/* iOS PWA: push nav below Dynamic Island using navigator.standalone (Apple API) */
-if(window.navigator.standalone===true){
-  var s=document.createElement('style');
-  s.textContent='nav#main-nav{padding-top:65px!important}';
-  document.head.appendChild(s);
-}
-</script>
 </head>
 <body>
 <nav id="main-nav" aria-label="Primary">
@@ -5878,13 +5871,17 @@ function sortArrow(section, col) {
 // ══════════════════════════════════════
 function toggleTheme() {
   document.body.classList.toggle('light');
-  localStorage.setItem('pano_theme', document.body.classList.contains('light') ? 'light' : 'dark');
+  const isLight = document.body.classList.contains('light');
+  localStorage.setItem('pano_theme', isLight ? 'light' : 'dark');
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', isLight ? '#efe5d0' : '#141810');
 }
 // Restore saved theme
 (function() {
-  if (localStorage.getItem('pano_theme') === 'light') {
-    document.body.classList.add('light');
-  }
+  const isLight = localStorage.getItem('pano_theme') === 'light';
+  if (isLight) document.body.classList.add('light');
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', isLight ? '#efe5d0' : '#141810');
 })();
 
 // ══════════════════════════════════════
@@ -6046,6 +6043,13 @@ document.addEventListener('keydown', e=>{
   if(e.key==='Escape'){ e.preventDefault(); closeModal(); }
   else if(e.key==='Tab'){ _trapFocus(e, document.getElementById('modal-body')||ov); }
 }, true);
+</script>
+
+<!-- PWA standalone detection — adds html.standalone so CSS can target it -->
+<script>
+if (window.navigator.standalone || window.matchMedia('(display-mode:standalone)').matches) {
+  document.documentElement.classList.add('standalone');
+}
 </script>
 
 <!-- Service Worker Registration -->
