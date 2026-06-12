@@ -2359,12 +2359,49 @@ function setSyncDot(state) { // 'pending'|'saving'|'saved'|'error'
   el.title = { pending:'Save pending…', saving:'Saving to cloud…', saved:'Saved', error:'Cloud save failed — data stored locally' }[state]||'';
 }
 
+// Tracks the _savedAt timestamp of the cloud version we last loaded.
+// If cloud has a newer _savedAt before we push, someone else edited — merge first.
+let _cloudBaseVersion = null;
+
+// Array keys that hold per-entry data (all entries have a unique `id`)
+const SYNC_ARRAYS = ['boc', 'nonBoc', 'groceries', 'settlements', 'recurring', 'activityLog'];
+
 async function pushToCloud() {
   setSyncDot('saving');
   try {
+    // ── 1. Fetch current cloud version ────────────────────────────
+    const checkRes = await fetch(BIN_URL + '/latest', {
+      headers: { 'X-Master-Key': MASTER_KEY }
+    });
+    if (checkRes.ok) {
+      const cloudJson = await checkRes.json();
+      const cloudRec  = cloudJson.record;
+      // ── 2. Conflict check: cloud updated since we last loaded ──
+      if (cloudRec && cloudRec._savedAt && cloudRec._savedAt !== _cloudBaseVersion) {
+        let mergedAny = false;
+        for (const key of SYNC_ARRAYS) {
+          if (!Array.isArray(cloudRec[key])) continue;
+          const localIds = new Set((db[key] || []).map(e => e.id).filter(Boolean));
+          const incoming = cloudRec[key].filter(e => e.id && !localIds.has(e.id));
+          if (incoming.length) {
+            db[key] = [...incoming, ...(db[key] || [])];
+            mergedAny = true;
+          }
+        }
+        if (mergedAny) {
+          localStorage.setItem(SK, JSON.stringify(db));
+          renderAll();
+          toast('Synced new changes from cloud', 'info');
+        }
+      }
+    }
+    // ── 3. Stamp version and push ─────────────────────────────────
+    db._savedAt = new Date().toISOString();
+    _cloudBaseVersion = db._savedAt;
+    localStorage.setItem(SK, JSON.stringify(db));
     const res = await fetch(BIN_URL, {
-      method:'PUT',
-      headers:{'Content-Type':'application/json','X-Master-Key':MASTER_KEY},
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
       body: JSON.stringify(db)
     });
     if (!res.ok) throw new Error(res.status);
@@ -2431,6 +2468,7 @@ async function initDB() {
       // Use cloud data only if it looks like real app data (has opening or boc key)
       if (rec && (rec.opening || rec.boc)) {
         db = rec;
+        _cloudBaseVersion = rec._savedAt || null; // remember what version we loaded
         localStorage.setItem(SK, JSON.stringify(db)); // sync local cache
       }
     }
