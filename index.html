@@ -7,7 +7,7 @@
 
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#141810">
+<meta name="theme-color" content="#080c14">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -757,7 +757,7 @@ body.light .hi-abn-amt { color:#2a2620; }
   .card { padding:14px 12px; border-radius:14px; margin-bottom:10px; }
 
   /* Dashboard header — stack */
-  .dash-header { flex-direction:column; align-items:flex-start; gap:6px; margin-bottom:14px; }
+  .dash-header { flex-direction:column; align-items:flex-start; gap:6px; margin-bottom:0; }
   .dash-greeting { font-size:1.2rem; }
   .dash-meta { text-align:left; width:100%; }
   .dash-settle-row { justify-content:flex-start; }
@@ -1353,7 +1353,7 @@ body.light .field-err { color:#c33d22; }
   .dash-mfilter-bar {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     position: sticky; top: env(safe-area-inset-top, 0px); z-index: 31;
-    margin: 6px -12px 12px; padding: 9px 12px;
+    margin: 0 -12px 12px; padding: 9px 12px;
     background: rgba(20,24,16,.82);
     backdrop-filter: blur(14px) saturate(1.05); -webkit-backdrop-filter: blur(14px) saturate(1.05);
     border-bottom: 1px solid var(--border);
@@ -5880,14 +5880,14 @@ function toggleTheme() {
   const isLight = document.body.classList.contains('light');
   localStorage.setItem('pano_theme', isLight ? 'light' : 'dark');
   const tc = document.querySelector('meta[name="theme-color"]');
-  if (tc) tc.setAttribute('content', isLight ? '#efe5d0' : '#141810');
+  if (tc) tc.setAttribute('content', isLight ? '#efe5d0' : '#080c14');
 }
 // Restore saved theme
 (function() {
   const isLight = localStorage.getItem('pano_theme') === 'light';
   if (isLight) document.body.classList.add('light');
   const tc = document.querySelector('meta[name="theme-color"]');
-  if (tc) tc.setAttribute('content', isLight ? '#efe5d0' : '#141810');
+  if (tc) tc.setAttribute('content', isLight ? '#efe5d0' : '#080c14');
 })();
 
 // ══════════════════════════════════════
