@@ -937,10 +937,7 @@ body.light .hi-abn-amt { color:#2a2620; }
   .fab { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   .fab-sheet { bottom: calc(142px + env(safe-area-inset-bottom, 0px)); }
 }
-/* Push content below the status bar in PWA (env() = 0 in regular browser) */
-@media (max-width: 640px) {
-  body { padding-top: env(safe-area-inset-top, 0px); }
-}
+/* Push content below status bar — env() is 0 in browser, auto in PWA */
 
 /* ══ SYNC INDICATOR ══ */
 #sync-indicator { font-size:.62rem; color:var(--text3); margin-top:1px; }
@@ -1094,7 +1091,10 @@ body.light .dash-top-anchor { background: rgba(243,234,215,.8); box-shadow: 0 14
 .tab-mbar, .fbar-backdrop, .fbar-sheet-head, .fbar-done { display: none; } /* mobile-only */
 @media(max-width:640px) {
   nav { display: none !important; }
-  main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+  main {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
 
   .mob-bar {
     display: flex;
