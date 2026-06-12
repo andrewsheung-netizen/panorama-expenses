@@ -2368,15 +2368,14 @@ const SYNC_ARRAYS = ['boc', 'nonBoc', 'groceries', 'settlements', 'recurring', '
 
 async function pushToCloud() {
   setSyncDot('saving');
+  // ── 1. Conflict check (best-effort — NEVER blocks the save) ───────────────
   try {
-    // ── 1. Fetch current cloud version ────────────────────────────
     const checkRes = await fetch(BIN_URL + '/latest', {
       headers: { 'X-Master-Key': MASTER_KEY }
     });
     if (checkRes.ok) {
       const cloudJson = await checkRes.json();
       const cloudRec  = cloudJson.record;
-      // ── 2. Conflict check: cloud updated since we last loaded ──
       if (cloudRec && cloudRec._savedAt && cloudRec._savedAt !== _cloudBaseVersion) {
         let mergedAny = false;
         for (const key of SYNC_ARRAYS) {
@@ -2395,7 +2394,12 @@ async function pushToCloud() {
         }
       }
     }
-    // ── 3. Stamp version and push ─────────────────────────────────
+  } catch(e) {
+    // Conflict check failed — log and continue. Save must still go through.
+    console.warn('[Sync] Conflict check failed, proceeding with save:', e);
+  }
+  // ── 2. Always push ────────────────────────────────────────────────────────
+  try {
     db._savedAt = new Date().toISOString();
     _cloudBaseVersion = db._savedAt;
     localStorage.setItem(SK, JSON.stringify(db));
