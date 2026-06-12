@@ -1101,21 +1101,21 @@ body.light .dash-top-anchor { background: rgba(243,234,215,.8); box-shadow: 0 14
     position: fixed;
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     left: 12px; right: 12px;
-    background: rgba(29, 36, 22, 0.88);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(29, 36, 22, 0.55);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
     border: 1px solid var(--border2);
     border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.3);
+    box-shadow: 0 8px 32px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.2);
     z-index: 200;
     overflow: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
   body.light .mob-bar {
-    background: rgba(244, 238, 222, 0.90);
+    background: rgba(244, 238, 222, 0.65);
     border-color: rgba(42,38,32,.12);
-    box-shadow: 0 8px 32px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.08);
+    box-shadow: 0 8px 32px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06);
   }
   .mob-bar::-webkit-scrollbar { display: none; }
 
@@ -5844,6 +5844,8 @@ function applySortToArr(arr, section) {
   return [...arr].sort((a,b)=>{
     let av=a[col], bv=b[col];
     if (col==='amount') { av=parseFloat(av)||0; bv=parseFloat(bv)||0; }
+    // Normalise missing timestamps so undefined entries sort to the end
+    if (col==='createdAt') { av=av||''; bv=bv||''; }
     if (av<bv) return -dir; if (av>bv) return dir; return 0;
   });
 }
