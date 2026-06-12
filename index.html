@@ -926,8 +926,18 @@ body.light .hi-abn-amt { color:#2a2620; }
 .fab-backdrop { position:fixed; inset:0; z-index:108; display:none; }
 .fab-backdrop.open { display:block; }
 @media (max-width:640px) {
-  .fab { bottom:max(74px, calc(env(safe-area-inset-bottom) + 60px)); right:16px; }
-  .fab-sheet { bottom:max(138px, calc(env(safe-area-inset-bottom) + 124px)); right:16px; }
+  /* FAB sits above the floating mob-bar (bar bottom 12px + bar height 58px + gap 14px = 84px) */
+  .fab { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); right:16px; }
+  .fab-sheet { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); right:16px; }
+}
+/* PWA standalone: no browser chrome below, nudge bar closer to screen edge */
+@media (display-mode: standalone) and (max-width:640px) {
+  /* Push content below the status bar */
+  body { padding-top: env(safe-area-inset-top, 0px); }
+  /* Nudge bar closer to screen edge (no browser chrome below) */
+  .mob-bar { bottom: calc(4px + env(safe-area-inset-bottom, 0px)); }
+  .fab { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .fab-sheet { bottom: calc(142px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ══ SYNC INDICATOR ══ */
