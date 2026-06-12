@@ -21,6 +21,7 @@
 /* ══ CSS VARIABLES ══ */
 /* ════ NEO MIRAI — night (green-black) is the default ════ */
 :root {
+  --pwa-safe-top: 0px;
   --bg:        #141810;
   --surface:   #1d2416;
   --surface2:  #232b1a;
@@ -71,7 +72,7 @@ nav {
   background: rgba(8,12,20,.93);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  display: flex; align-items: stretch; padding: env(safe-area-inset-top, 0px) 24px 0;
+  display: flex; align-items: stretch; padding: var(--pwa-safe-top) 24px 0;
   box-shadow: 0 1px 0 var(--border2), 0 8px 32px rgba(0,0,0,.55);
   position: sticky; top: 0; z-index: 50;
   border-bottom: 1px solid var(--border);
@@ -930,10 +931,6 @@ body.light .hi-abn-amt { color:#2a2620; }
   .fab { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); right:16px; }
   .fab-sheet { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); right:16px; }
 }
-/* PWA standalone: push nav content below status bar/Dynamic Island */
-@media (display-mode: standalone) {
-  nav { padding-top: max(env(safe-area-inset-top, 0px), 59px); }
-}
 /* PWA standalone: no browser chrome below, nudge bar closer to screen edge */
 @media (display-mode: standalone) and (max-width:640px) {
   /* Nudge bar closer to screen edge (no browser chrome below) */
@@ -1479,6 +1476,22 @@ body.light .field-err { color:#c33d22; }
   }
 }
 </style>
+<script>
+/* Reliable iOS PWA safe-area detection via navigator.standalone */
+(function(){
+  if(window.navigator.standalone){
+    var sat=0;
+    try{
+      var p=document.createElement('div');
+      p.style.cssText='position:fixed;top:0;width:0;height:0;padding-top:env(safe-area-inset-top,0px);visibility:hidden;';
+      document.documentElement.appendChild(p);
+      sat=parseFloat(getComputedStyle(p).paddingTop)||0;
+      document.documentElement.removeChild(p);
+    }catch(e){}
+    document.documentElement.style.setProperty('--pwa-safe-top', Math.max(sat,59)+'px');
+  }
+})();
+</script>
 </head>
 <body>
 <nav id="main-nav" aria-label="Primary">

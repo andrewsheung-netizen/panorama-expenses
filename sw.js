@@ -6,7 +6,7 @@
  *   - EmailJS CDN                         → Cache-first (rarely changes)
  */
 
-const CACHE_VERSION = 'panorama-v8';
+const CACHE_VERSION = 'panorama-v9';
 
 const APP_SHELL = [
   './',
@@ -80,7 +80,18 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // App shell & same-origin assets → Cache-first with background refresh
+  // HTML documents → Network-first (always get fresh markup)
+  if (url.origin === self.location.origin && (
+    event.request.destination === 'document' ||
+    url.pathname.endsWith('.html') ||
+    url.pathname === '/panorama-expenses/' ||
+    url.pathname === '/panorama-expenses'
+  )) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  // Other same-origin assets (icons, etc.) → Cache-first
   if (url.origin === self.location.origin) {
     event.respondWith(cacheFirst(event.request));
     return;
