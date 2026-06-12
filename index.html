@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#141810">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Panorama">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -937,9 +937,9 @@ body.light .hi-abn-amt { color:#2a2620; }
   .fab { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   .fab-sheet { bottom: calc(142px + env(safe-area-inset-bottom, 0px)); }
 }
-/* iOS PWA standalone: push content below the status bar */
-body.pwa-standalone {
-  padding-top: env(safe-area-inset-top, 44px);
+/* Push content below the status bar in PWA (env() = 0 in regular browser) */
+@media (max-width: 640px) {
+  body { padding-top: env(safe-area-inset-top, 0px); }
 }
 
 /* ══ SYNC INDICATOR ══ */
@@ -1481,12 +1481,6 @@ body.light .field-err { color:#c33d22; }
 </style>
 </head>
 <body>
-<script>
-  // Detect iOS PWA (home screen launch) and apply safe-area top padding
-  if (window.navigator.standalone === true) {
-    document.body.classList.add('pwa-standalone');
-  }
-</script>
 
 <nav id="main-nav" aria-label="Primary">
   <div class="nav-brand">
