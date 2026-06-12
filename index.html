@@ -339,16 +339,22 @@ tbody tr:hover td { background:rgba(236,98,48,.06); }
 /* Pull-to-refresh indicator — standalone PWA only */
 #ptr-indicator {
   display: none;
-  position: fixed; top: 0; left: 0; right: 0; z-index: 300;
-  height: env(safe-area-inset-top, 50px);
-  align-items: flex-end; justify-content: center;
-  padding-bottom: 6px;
+  position: fixed;
+  top: env(safe-area-inset-top, 44px); /* sits just BELOW the Dynamic Island */
+  left: 50%; z-index: 300;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0,0,0,.35);
+  align-items: center; justify-content: center;
+  transform: translateX(-50%) translateY(-42px); /* hidden above, slides in on pull */
   pointer-events: none;
+  will-change: transform, opacity;
 }
 html.standalone #ptr-indicator { display: flex; }
-#ptr-indicator svg { width: 20px; height: 20px; opacity: 0; transition: opacity 0.15s, transform 0.15s; }
-#ptr-indicator.ptr-loading svg { opacity: 1; animation: ptr-spin 0.75s linear infinite; }
-body.light #ptr-indicator svg { color: var(--text2); }
+#ptr-indicator svg { width: 18px; height: 18px; color: var(--text2); opacity: 0; }
+#ptr-indicator.ptr-loading svg { opacity: 1 !important; transform: none !important; animation: ptr-spin 0.75s linear infinite; }
+body.light #ptr-indicator { background: var(--surface2); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
 .modal h3 { font-size:1.05rem; font-weight:800; color:white; margin-bottom:20px; letter-spacing:-.2px; }
 .form-row { margin-bottom:14px; }
 .form-row > label { display:block; font-size:.66rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:5px; }
@@ -6087,7 +6093,22 @@ if (window.navigator.standalone || window.matchMedia('(display-mode:standalone)'
   if (!ptr || !ptrSvg) return;
 
   var startY = 0, pulling = false, refreshing = false;
-  var THRESHOLD = 72; // px to pull before triggering
+  var THRESHOLD = 72;  // px pull needed to trigger refresh
+  var PILL_TRAVEL = 46; // how far the pill slides down (matches translateY(-42px) + 4px visible)
+
+  function setPtrPos(pct) {
+    // pct 0 = hidden above DI, pct 1 = fully visible below DI
+    var ty = (pct * PILL_TRAVEL) - PILL_TRAVEL + 4;
+    ptr.style.transform = 'translateX(-50%) translateY(' + ty + 'px)';
+    ptrSvg.style.opacity = pct;
+    ptrSvg.style.transform = pct < 1 ? 'rotate(' + Math.round(pct * 180) + 'deg)' : '';
+  }
+
+  function resetPtr() {
+    ptr.style.transition = 'transform 0.25s ease, opacity 0.2s';
+    setPtrPos(0);
+    setTimeout(function() { ptr.style.transition = ''; }, 260);
+  }
 
   document.addEventListener('touchstart', function(e) {
     if (window.scrollY === 0 && !refreshing) {
@@ -6100,9 +6121,8 @@ if (window.navigator.standalone || window.matchMedia('(display-mode:standalone)'
     if (!pulling || refreshing) return;
     var dy = e.touches[0].pageY - startY;
     if (dy > 0) {
-      var pct = Math.min(dy / THRESHOLD, 1);
-      ptrSvg.style.opacity = pct;
-      ptrSvg.style.transform = 'rotate(' + Math.round(pct * 200) + 'deg)';
+      ptr.style.transition = '';
+      setPtrPos(Math.min(dy / THRESHOLD, 1));
     }
   }, { passive: true });
 
@@ -6112,9 +6132,12 @@ if (window.navigator.standalone || window.matchMedia('(display-mode:standalone)'
     var dy = e.changedTouches[0].pageY - startY;
     if (dy >= THRESHOLD) {
       refreshing = true;
-      ptr.classList.add('ptr-loading');
-      ptrSvg.style.opacity = '';
+      // Lock pill in visible position and spin
+      ptr.style.transition = '';
+      ptr.style.transform = 'translateX(-50%) translateY(' + (4) + 'px)';
+      ptrSvg.style.opacity = '1';
       ptrSvg.style.transform = '';
+      ptr.classList.add('ptr-loading');
       try {
         db = await initDB();
         applyMigrations();
@@ -6122,9 +6145,9 @@ if (window.navigator.standalone || window.matchMedia('(display-mode:standalone)'
       } catch(err) { console.warn('PTR refresh failed', err); }
       ptr.classList.remove('ptr-loading');
       refreshing = false;
+      resetPtr();
     } else {
-      ptrSvg.style.opacity = '0';
-      ptrSvg.style.transform = '';
+      resetPtr();
     }
   }, { passive: true });
 })();
