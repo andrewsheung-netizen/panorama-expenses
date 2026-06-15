@@ -4017,7 +4017,7 @@ function renderBOC() {
       <td class="num ${aC(t.amount)}">${fmtN(parseFloat(t.amount))}</td>
       <td class="num ${t._bal>=0?'ab':'an-b'}">${fmtN(t._bal)}</td>
       <td>${pb(t.paidBy)}</td>
-      <td><div class="notes-cell">${t.notes||'—'}${whoBadge(t.loggedBy)}${t.photo?`<img class="photo-thumb" src="${t.photo}" onclick="openLightbox('${t.photo}')" title="View receipt">`:''}</div></td>
+      <td><div class="notes-cell">${t.notes||'—'}${whoBadge(t.loggedBy)}${photoThumbsHtml(t)}</div></td>
       <td class="ts-cell" title="${t.updatedAt?'Edited '+fmtDT(t.updatedAt):''}">${fmtDT(t.updatedAt||t.createdAt)}</td>
       <td><div class="row-actions"><button class="dup-btn" title="Duplicate" aria-label="Duplicate entry" onclick="dupEntry('boc','${t.id}')">⧉</button><button class="edit-btn" aria-label="Edit entry" onclick="editEntry('boc','${t.id}')">✎</button><button class="del-btn" aria-label="Delete entry" onclick="del('boc','${t.id}')">✕</button></div></td>
     </tr>`).join('');
@@ -4052,7 +4052,7 @@ function renderNonBOC() {
       <td>${t.category}${t.subcategory?`<span class="subcat-lbl">↳ ${t.subcategory}${t.subsubcategory?` / ${t.subsubcategory}`:''}</span>`:''}</td>
       <td class="num ${aC(t.amount)}">${fmtN(parseFloat(t.amount))}</td>
       <td>${pb(t.paidBy)}</td>
-      <td><div class="notes-cell">${t.notes||'—'}${whoBadge(t.loggedBy)}${t.settled?'<span class="badge b-settled">Settled</span>':''}${t.photo?`<img class="photo-thumb" src="${t.photo}" onclick="openLightbox('${t.photo}')" title="View receipt">`:''}</div></td>
+      <td><div class="notes-cell">${t.notes||'—'}${whoBadge(t.loggedBy)}${t.settled?'<span class="badge b-settled">Settled</span>':''}${photoThumbsHtml(t)}</div></td>
       <td class="ts-cell" title="${t.updatedAt?'Edited '+fmtDT(t.updatedAt):''}">${fmtDT(t.updatedAt||t.createdAt)}</td>
       <td><div class="row-actions">${t.settled?`<button class="unsettle-row-btn" onclick="toggleRowSettle('nonBoc','${t.id}')" title="Unsettle">↩ Unsettle</button>`:`<button class="settle-row-btn" onclick="toggleRowSettle('nonBoc','${t.id}')" title="Mark settled">✓ Settle</button>`}<button class="dup-btn" title="Duplicate" aria-label="Duplicate entry" onclick="dupEntry('nonBoc','${t.id}')">⧉</button><button class="edit-btn" aria-label="Edit entry" onclick="editEntry('nonBoc','${t.id}')">✎</button><button class="del-btn" aria-label="Delete entry" onclick="del('nonBoc','${t.id}')">✕</button></div></td>
     </tr>`).join('');
@@ -4115,7 +4115,7 @@ function renderGroceries() {
       <td class="num ${aC(t.amount)}">${fmtN(parseFloat(t.amount))}</td>
       <td>${pb(t.paidBy)}</td>
       <td>${(t.isHelper||t.category==='Helper')?'<span class="badge b-h">Helper</span>':'—'}</td>
-      <td><div class="notes-cell">${t.notes||'—'}${whoBadge(t.loggedBy)}${t.settled?'<span class="badge b-settled">Settled</span>':''}${t.photo?`<img class="photo-thumb" src="${t.photo}" onclick="openLightbox('${t.photo}')" title="View receipt">`:''}</div></td>
+      <td><div class="notes-cell">${t.notes||'—'}${whoBadge(t.loggedBy)}${t.settled?'<span class="badge b-settled">Settled</span>':''}${photoThumbsHtml(t)}</div></td>
       <td class="ts-cell" title="${t.updatedAt?'Edited '+fmtDT(t.updatedAt):''}">${fmtDT(t.updatedAt||t.createdAt)}</td>
       <td><div class="row-actions">${t.settled?`<button class="unsettle-row-btn" onclick="toggleRowSettle('groceries','${t.id}')" title="Unsettle">↩ Unsettle</button>`:`<button class="settle-row-btn" onclick="toggleRowSettle('groceries','${t.id}')" title="Mark settled">✓ Settle</button>`}<button class="dup-btn" title="Duplicate" aria-label="Duplicate entry" onclick="dupEntry('groceries','${t.id}')">⧉</button><button class="edit-btn" aria-label="Edit entry" onclick="editEntry('groceries','${t.id}')">✎</button><button class="del-btn" aria-label="Delete entry" onclick="del('groceries','${t.id}')">✕</button></div></td>
     </tr>`).join('');
@@ -4305,7 +4305,7 @@ function saveOpeningBalances() {
 // ══════════════════════════════════════
 let mtype=null, editId=null;
 function openModal(type) {
-  mtype=type; editId=null; _pendingPhoto=null;
+  mtype=type; editId=null; _pendingPhotos=[];
   document.getElementById('modal-body').innerHTML=buildModal(type);
   openModalOverlay();
   document.getElementById('f-date').value=today();
@@ -4354,11 +4354,17 @@ function editEntry(section, id) {
   if(type==='boc'&&entry.category==='Interest'){
     const pr=document.getElementById('paid-by-row'); if(pr) pr.style.display='none';
   }
-  // Pre-fill photo
-  _pendingPhoto = entry.photo || null;
-  if (_pendingPhoto) renderPhotoPreview(_pendingPhoto);
+  // Pre-fill photos from localStorage (new format), or migrate old single-photo format
+  _pendingPhotos = getPhotos(id);
+  if (!_pendingPhotos.length && entry.photo) {
+    _pendingPhotos = [entry.photo];
+    savePhotos(id, _pendingPhotos);
+    entry.photoCount = 1;
+    delete entry.photo;
+  }
+  refreshPhotoUI();
 }
-function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); mtype=null; editId=null; _pendingPhoto=null; if(_modalOpener&&_modalOpener.focus){ try{ _modalOpener.focus(); }catch(e){} _modalOpener=null; } }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); mtype=null; editId=null; _pendingPhotos=[]; if(_modalOpener&&_modalOpener.focus){ try{ _modalOpener.focus(); }catch(e){} _modalOpener=null; } }
 function bgClose(e)   { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
 
 function paidHtml() {
@@ -4566,25 +4572,81 @@ function removeSubSubcat(type, subcat, idx) {
 // ══════════════════════════════════════
 //  PHOTO HELPERS
 // ══════════════════════════════════════
-let _pendingPhoto = null; // base64 string for current modal session
+let _pendingPhotos = []; // array of base64 strings for current modal session
+
+// ── Photo localStorage helpers ──────────────────────────────────────────────
+function getPhotos(entryId) {
+  const out = [];
+  for (let i = 0; i < 10; i++) {
+    const v = localStorage.getItem('pano_ph_' + entryId + '_' + i);
+    if (!v) break;
+    out.push(v);
+  }
+  return out;
+}
+function savePhotos(entryId, arr) {
+  arr.forEach((b64, i) => localStorage.setItem('pano_ph_' + entryId + '_' + i, b64));
+  // Clear any extras beyond new count
+  for (let i = arr.length; i < 10; i++) {
+    const k = 'pano_ph_' + entryId + '_' + i;
+    if (!localStorage.getItem(k)) break;
+    localStorage.removeItem(k);
+  }
+}
+function deletePhotos(entryId) {
+  for (let i = 0; i < 10; i++) {
+    const k = 'pano_ph_' + entryId + '_' + i;
+    if (!localStorage.getItem(k)) break;
+    localStorage.removeItem(k);
+  }
+}
+// Returns HTML for photo thumbnails in table rows (handles old + new format)
+function photoThumbsHtml(entry) {
+  if (!entry) return '';
+  // Migrate old single-photo format to localStorage
+  if (entry.photo) {
+    savePhotos(entry.id, [entry.photo]);
+    entry.photoCount = 1;
+    delete entry.photo;
+  }
+  if (!entry.photoCount) return '';
+  const photos = getPhotos(entry.id);
+  if (!photos.length) return `<span title="${entry.photoCount} photo(s) saved on another device" style="font-size:1.05em;cursor:default;vertical-align:middle">📷</span>`;
+  return photos.map(b64 => `<img class="photo-thumb" src="${b64}" onclick="openLightbox(this.src)" title="View photo">`).join('');
+}
 
 function photoRowHtml() {
   return `<div class="form-row">
-    <label>Receipt / Photo</label>
+    <label>Receipt / Photos</label>
     <div class="photo-upload-row">
-      <label class="photo-upload-btn" for="f-photo-input"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Add Photo</label>
-      <input type="file" id="f-photo-input" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(event)">
       <div id="photo-preview-area"></div>
+      <label class="photo-upload-btn" id="photo-add-btn" for="f-photo-input"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Add Photo</label>
+      <input type="file" id="f-photo-input" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(event)">
     </div>
   </div>`;
 }
 
+function refreshPhotoUI() {
+  const area = document.getElementById('photo-preview-area');
+  if (!area) return;
+  area.innerHTML = _pendingPhotos.map((b64, i) =>
+    `<div class="photo-preview-wrap">
+      <img class="photo-preview-img" src="${b64}" onclick="openLightbox(this.src)">
+      <button class="photo-remove-btn" onclick="removePhoto(${i})" title="Remove">✕</button>
+    </div>`
+  ).join('');
+  const btn = document.getElementById('photo-add-btn');
+  if (btn) btn.style.display = _pendingPhotos.length >= 4 ? 'none' : '';
+}
+
 function onPhotoSelected(event) {
   const file = event.target.files[0];
-  if (!file) return;
+  if (!file || _pendingPhotos.length >= 4) return;
   compressPhoto(file).then(b64 => {
-    _pendingPhoto = b64;
-    renderPhotoPreview(b64);
+    _pendingPhotos.push(b64);
+    refreshPhotoUI();
+    const inp = document.getElementById('f-photo-input');
+    if (inp) inp.value = '';
   });
 }
 
@@ -4611,21 +4673,9 @@ function compressPhoto(file) {
   });
 }
 
-function renderPhotoPreview(b64) {
-  const area = document.getElementById('photo-preview-area');
-  if (!area) return;
-  area.innerHTML = `<div class="photo-preview-wrap">
-    <img class="photo-preview-img" src="${b64}" onclick="openLightbox('${b64}')">
-    <button class="photo-remove-btn" onclick="removePhoto()" title="Remove">✕</button>
-  </div>`;
-}
-
-function removePhoto() {
-  _pendingPhoto = null;
-  const area = document.getElementById('photo-preview-area');
-  if (area) area.innerHTML = '';
-  const inp = document.getElementById('f-photo-input');
-  if (inp) inp.value = '';
+function removePhoto(index) {
+  _pendingPhotos.splice(index, 1);
+  refreshPhotoUI();
 }
 
 function openLightbox(src) {
@@ -4762,7 +4812,9 @@ function saveEntry() {
       if (!isInterest) arr[idx].paidBy = paidBy; else delete arr[idx].paidBy;
       if (subcat)    arr[idx].subcategory    = subcat;    else delete arr[idx].subcategory;
       if (subsubcat) arr[idx].subsubcategory = subsubcat; else delete arr[idx].subsubcategory;
-      if (_pendingPhoto) arr[idx].photo = _pendingPhoto; else delete arr[idx].photo;
+      if (_pendingPhotos.length) { savePhotos(editId, _pendingPhotos); arr[idx].photoCount = _pendingPhotos.length; }
+      else { deletePhotos(editId); delete arr[idx].photoCount; }
+      delete arr[idx].photo; // remove old single-photo field if present
       arr[idx].updatedAt = new Date().toISOString();
       arr[idx].updatedBy = currentUser()||undefined;
       if (section==='groceries') {
@@ -4784,8 +4836,9 @@ function saveEntry() {
   }
 
   // ── ADD MODE ──
-  const e = {id:uid(), date, amount, notes, loggedBy: currentUser()||undefined, createdAt: new Date().toISOString()};
-  if (_pendingPhoto) e.photo = _pendingPhoto;
+  const _eid = uid();
+  const e = {id:_eid, date, amount, notes, loggedBy: currentUser()||undefined, createdAt: new Date().toISOString()};
+  if (_pendingPhotos.length) { savePhotos(_eid, _pendingPhotos); e.photoCount = _pendingPhotos.length; }
   if (!isInterest) e.paidBy = paidBy;
   if (subcat)    e.subcategory    = subcat;
   if (subsubcat) e.subsubcategory = subsubcat;
@@ -5037,7 +5090,7 @@ async function del(section, id) {
   const secLabel = section==='boc'?'BOC':section==='nonBoc'?'Other':section==='groceries'?'Groceries':'Trip';
   const desc = entry ? `${entry.category||''} — HKD ${fmtN(Math.abs(entry.amount))} on ${entry.date||''}` : '';
   if (!await confirmDialog({ title:'Delete this entry?', message:desc, confirmText:'Delete', danger:true })) return;
-  if (entry) logActivity('delete', secLabel, `Deleted ${secLabel}: ${entry.category||''} ${fmtN(entry.amount)} on ${entry.date||''}`);
+  if (entry) { logActivity('delete', secLabel, `Deleted ${secLabel}: ${entry.category||''} ${fmtN(entry.amount)} on ${entry.date||''}`); deletePhotos(id); }
   db[section]=db[section].filter(t=>t.id!==id);
   save(); renderAll();
   toast('Entry deleted', 'info');
