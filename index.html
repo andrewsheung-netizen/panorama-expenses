@@ -4652,7 +4652,7 @@ async function getGDToken() {
   const hdr = _b64url(JSON.stringify({alg:'RS256',typ:'JWT'}));
   const pay = _b64url(JSON.stringify({
     iss: GD_CLIENT_EMAIL,
-    scope: 'https://www.googleapis.com/auth/drive.file',
+    scope: 'https://www.googleapis.com/auth/drive',
     aud: 'https://oauth2.googleapis.com/token',
     exp: now + 3600, iat: now,
   }));
@@ -4671,7 +4671,11 @@ async function getGDToken() {
     body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
   });
   const data = await res.json();
-  if (!data.access_token) throw new Error('GD auth failed: ' + JSON.stringify(data));
+  if (!data.access_token) {
+    const msg = 'GD auth failed: ' + JSON.stringify(data);
+    console.error('[Drive]', msg);
+    throw new Error(msg);
+  }
   _gdToken = data.access_token;
   _gdTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
   return _gdToken;
@@ -4694,7 +4698,11 @@ async function uploadToDrive(b64DataUrl) {
     {method:'POST', headers:{Authorization:'Bearer '+token}, body:form}
   );
   const file = await res.json();
-  if (!file.id) throw new Error('Drive upload failed: ' + JSON.stringify(file));
+  if (!file.id) {
+    const msg = 'Drive upload failed: ' + JSON.stringify(file);
+    console.error('[Drive]', msg);
+    throw new Error(msg);
+  }
   // Make publicly accessible via link so any device can load the image URL
   await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
     method:'POST',
@@ -4944,8 +4952,8 @@ async function saveEntry() {
     try {
       newPhotoUrls = await Promise.all(_pendingPhotos.map(b64 => uploadToDrive(b64)));
     } catch(err) {
-      console.warn('[Drive] Photo upload failed:', err);
-      toast('Photo upload failed — entry saved without new photos', 'error', 5000);
+      console.error('[Drive] Photo upload failed:', err);
+      toast('Photo upload failed: ' + (err.message||err), 'error', 8000);
     } finally {
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
     }
