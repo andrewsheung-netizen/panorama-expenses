@@ -2350,6 +2350,12 @@ const BIN_ID     = '6a26af29f5f4af5e29cb090c';
 const MASTER_KEY = '$2a$10$c56yg9pnfk1XFqce2F3I/OJqPCvlR2Fo1UskPXLdS1olIY.yu3W.e';
 const BIN_URL    = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
+// ── Google Drive photo storage (service account) ──────────────────────
+const GD_CLIENT_EMAIL = 'panorama-uploader@panorama-expenses-500503.iam.gserviceaccount.com';
+const GD_PRIVATE_KEY  = '-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC/C2zY7GX8dCVj\nq2u4YPov2e5uKc8ppD6orGPAqU/GjLUEFpsO15+7XByfm8/+gn/gaz75YmHWkF1k\nSh178hTOzDY2MBMgnXZpEDcgkyEISvf7Sza+r4ADhuQR376J7nuffQs/cuVCYHMx\nZhJCu/oWrAjfby9SwwwK6FaQ17i+7i0piEqgcR9BUZvT8EHEWndOeUibThnXdEHN\nmk1bFv8Dmu0IXwbGAfaPhybsEfP0SiTnsdBUYeN51y85uM7DPY9FhBbQ4m+Guxf7\nP4F4vESB+mcM1XCuotR5RGB7tLUYe2+sHzA4+Oiic5jgC22gRXUT3by5rY0e4nGa\nkKD8rj29AgMBAAECggEAAzWBFmMLfYJCmdoocjg9dkNOCXoDTvrsIITbcheF+Fr8\nXr1gd7nbJthaahCXHaUkhROtbZ6fmm03XGFlqGN9wlF/fEkyG7ikDgoQhagNrygk\njTXguAhA+WOGfjReF3ldiJAe+b8HfHtxQ+b9LzNyyncI+R59fYGQOLiusjp6vHOX\n+VR81lwoC0D7qdngYM4lVySYGvR/ifm1bYlsjeETRfdM3qcVQ5mv7OoccoxCtZT8\nLjxglrVv+q23jFxZiOeJNdo0d9PxtSE/6SxDGrpR+/Tox16L94niiW6YJPB6lMaL\nylw9SXuyW7o1yENtd6uqQ5L9oamnu3J6k18Yy4OygQKBgQDhT1SAvUupux8Rr2TC\n/ZCnvobVgQtj5OjBFY8duTD4L6h7XO3la2yCT6nwjseS0ucLScQPMZgsVeyk/hu/\nv/xOAxI8/Pm5cDxD+dXZ2GRvKweBNMawUFhXftq316Z6g20WocISpk2elEKTlf0n\nQH5rlXjn+pUrx4qN7U08ekOVfQKBgQDZET+SMB9HsZnF1KeAydg73StUAb27TWBF\nUpHP3fueU0pZB7ymt88ywz852r4DhsXfi0W9AeomvOOggD1jXqGLCwBAr2s94Wf9\naul0Y9HflcMri2Uku6fq3MVODepLf9NXjPkVk17bB6oFwrNy4oSU2jsoFJGQVNo6\nm7RL1Ui9QQKBgEmTFzwnFIMrmLy0ssm99bPhUrR7vFV1ldAfkymYpPYW0gTe1sy5\nJKj1DMCCT4eRmWMlRoHTpyarNGi4liUqs2BiPl1uGrpEfVmRRxUpRbrLqVq2+j7v\nLbn8sb2hDTsqmb/vOKnQZr5nGcqKCy37MI0/NUlDmdy+/27TVApwvosdAoGAd1za\nvkKkEMKCspybd2CG/XRDTTCf6o1D8RrUf5+rq4ZVjduJS4wr7dgbvm6gqkPEL4bg\nVGznG2InMa0TFL+GyXTFMMzFhgObMWlG8u+pCu/JoPpIJgji721zOdbBDb8+shgd\nKFYfhQYT4pMMJpKVIV1XxlR5LwrZ7fyNCl5AX4ECgYBdxlm2epKKLJYkhDMT7fgq\nM83arM065E0PTRFVaaSjrgLFEnoMXPNhJ+YmEvuKl5r5qOVQ7cTn4rjP9akwLxfw\nRyISCSp7CEfNbgdNfkKLEleLvi0l2LSIcnbn6Z8ceLmGIjrfGLGvGfEeYO2m7kKl\n8bWnErI5N2CcDudbZlUaeA==\n-----END PRIVATE KEY-----\n';
+const GD_FOLDER_ID    = '1MW4DqcurNUzq3f6gtSgjw65-hWyNhSVc';
+let _gdToken = null, _gdTokenExpiry = 0;
+
 let _saveTimer = null;
 function setSyncDot(state) { // 'pending'|'saving'|'saved'|'error'
   const el = document.getElementById('sync-dot');
@@ -4305,7 +4311,7 @@ function saveOpeningBalances() {
 // ══════════════════════════════════════
 let mtype=null, editId=null;
 function openModal(type) {
-  mtype=type; editId=null; _pendingPhotos=[];
+  mtype=type; editId=null; _pendingPhotos=[]; _existingPhotoUrls=[];
   document.getElementById('modal-body').innerHTML=buildModal(type);
   openModalOverlay();
   document.getElementById('f-date').value=today();
@@ -4354,17 +4360,17 @@ function editEntry(section, id) {
   if(type==='boc'&&entry.category==='Interest'){
     const pr=document.getElementById('paid-by-row'); if(pr) pr.style.display='none';
   }
-  // Pre-fill photos from localStorage (new format), or migrate old single-photo format
-  _pendingPhotos = getPhotos(id);
-  if (!_pendingPhotos.length && entry.photo) {
-    _pendingPhotos = [entry.photo];
-    savePhotos(id, _pendingPhotos);
-    entry.photoCount = 1;
-    delete entry.photo;
+  // Pre-fill photos
+  _existingPhotoUrls = [...(entry.photoUrls || [])];
+  _pendingPhotos = [];
+  if (!_existingPhotoUrls.length) {
+    // Backward compat: localStorage photos — will be uploaded to Drive on save
+    _pendingPhotos = getPhotos(id);
+    if (!_pendingPhotos.length && entry.photo) _pendingPhotos = [entry.photo]; // very old format
   }
   refreshPhotoUI();
 }
-function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); mtype=null; editId=null; _pendingPhotos=[]; if(_modalOpener&&_modalOpener.focus){ try{ _modalOpener.focus(); }catch(e){} _modalOpener=null; } }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); mtype=null; editId=null; _pendingPhotos=[]; _existingPhotoUrls=[]; if(_modalOpener&&_modalOpener.focus){ try{ _modalOpener.focus(); }catch(e){} _modalOpener=null; } }
 function bgClose(e)   { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
 
 function paidHtml() {
@@ -4572,7 +4578,8 @@ function removeSubSubcat(type, subcat, idx) {
 // ══════════════════════════════════════
 //  PHOTO HELPERS
 // ══════════════════════════════════════
-let _pendingPhotos = []; // array of base64 strings for current modal session
+let _pendingPhotos = [];      // base64 strings for NEW photos added this modal session
+let _existingPhotoUrls = []; // Drive URLs for already-saved photos (edit mode)
 
 // ── Photo localStorage helpers ──────────────────────────────────────────────
 function getPhotos(entryId) {
@@ -4631,23 +4638,92 @@ function deletePhotos(entryId) {
     localStorage.removeItem(k);
   }
 }
-// Returns HTML for photo thumbnails in table rows (handles old + new format)
+
+// ── Google Drive upload helpers ─────────────────────────────────────────────
+function _b64url(input) {
+  const str = (typeof input === 'string')
+    ? btoa(input)
+    : btoa(String.fromCharCode(...new Uint8Array(input)));
+  return str.replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+}
+async function getGDToken() {
+  if (_gdToken && _gdTokenExpiry > Date.now()) return _gdToken;
+  const now = Math.floor(Date.now() / 1000);
+  const hdr = _b64url(JSON.stringify({alg:'RS256',typ:'JWT'}));
+  const pay = _b64url(JSON.stringify({
+    iss: GD_CLIENT_EMAIL,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600, iat: now,
+  }));
+  const sigInput = hdr + '.' + pay;
+  const pem = GD_PRIVATE_KEY.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g,'');
+  const keyBuf = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8', keyBuf.buffer,
+    {name:'RSASSA-PKCS1-v1_5', hash:'SHA-256'}, false, ['sign']
+  );
+  const sigBuf = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(sigInput));
+  const jwt = sigInput + '.' + _b64url(sigBuf);
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+  });
+  const data = await res.json();
+  if (!data.access_token) throw new Error('GD auth failed: ' + JSON.stringify(data));
+  _gdToken = data.access_token;
+  _gdTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
+  return _gdToken;
+}
+async function uploadToDrive(b64DataUrl) {
+  const token = await getGDToken();
+  const commaIdx = b64DataUrl.indexOf(',');
+  const mime = b64DataUrl.slice(5, b64DataUrl.indexOf(';'));
+  const bytes = atob(b64DataUrl.slice(commaIdx + 1));
+  const buf = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
+  const blob = new Blob([buf], {type: mime});
+  const filename = 'pano_' + Date.now() + (mime.includes('png') ? '.png' : '.jpg');
+  const meta = JSON.stringify({name: filename, parents: [GD_FOLDER_ID]});
+  const form = new FormData();
+  form.append('metadata', new Blob([meta], {type:'application/json'}));
+  form.append('file', blob);
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+    {method:'POST', headers:{Authorization:'Bearer '+token}, body:form}
+  );
+  const file = await res.json();
+  if (!file.id) throw new Error('Drive upload failed: ' + JSON.stringify(file));
+  // Make publicly accessible via link so any device can load the image URL
+  await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
+    method:'POST',
+    headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+    body: JSON.stringify({role:'reader', type:'anyone'}),
+  });
+  return 'https://drive.google.com/uc?export=view&id=' + file.id;
+}
+
+// Returns HTML for photo thumbnails in table rows
 function photoThumbsHtml(entry) {
   if (!entry) return '';
-  // Migrate old single-photo format to localStorage
-  if (entry.photo) {
-    try {
-      savePhotos(entry.id, [entry.photo]);
-      entry.photoCount = 1;
-      delete entry.photo;
-    } catch(err) {
-      console.warn('[Photos] Migration failed (storage full):', err);
-    }
+  // Primary: new Drive URL format
+  if (entry.photoUrls?.length) {
+    return entry.photoUrls.map(url =>
+      `<img class="photo-thumb" src="${url}" onclick="openLightbox(this.src)" title="View photo">`
+    ).join('');
   }
-  if (!entry.photoCount) return '';
-  const photos = getPhotos(entry.id);
-  if (!photos.length) return `<span title="${entry.photoCount} photo(s) saved on another device" style="font-size:1.05em;cursor:default;vertical-align:middle">📷</span>`;
-  return photos.map(b64 => `<img class="photo-thumb" src="${b64}" onclick="openLightbox(this.src)" title="View photo">`).join('');
+  // Backward compat: very old inline base64 (entry.photo)
+  if (entry.photo) {
+    return `<img class="photo-thumb" src="${entry.photo}" onclick="openLightbox(this.src)" title="View photo">`;
+  }
+  // Backward compat: localStorage-based photos (entry.photoCount)
+  if (entry.photoCount) {
+    const photos = getPhotos(entry.id);
+    if (photos.length) return photos.map(b64 => `<img class="photo-thumb" src="${b64}" onclick="openLightbox(this.src)" title="View photo">`).join('');
+    return `<span title="${entry.photoCount} photo(s) — open to sync" style="font-size:1.05em;cursor:default;vertical-align:middle">📷</span>`;
+  }
+  return '';
 }
 
 function photoRowHtml() {
@@ -4664,19 +4740,27 @@ function photoRowHtml() {
 function refreshPhotoUI() {
   const area = document.getElementById('photo-preview-area');
   if (!area) return;
-  area.innerHTML = _pendingPhotos.map((b64, i) =>
+  const existHtml = _existingPhotoUrls.map((url, i) =>
+    `<div class="photo-preview-wrap">
+      <img class="photo-preview-img" src="${url}" onclick="openLightbox(this.src)">
+      <button class="photo-remove-btn" onclick="removeExistingPhoto(${i})" title="Remove">✕</button>
+    </div>`
+  ).join('');
+  const pendHtml = _pendingPhotos.map((b64, i) =>
     `<div class="photo-preview-wrap">
       <img class="photo-preview-img" src="${b64}" onclick="openLightbox(this.src)">
       <button class="photo-remove-btn" onclick="removePhoto(${i})" title="Remove">✕</button>
     </div>`
   ).join('');
+  area.innerHTML = existHtml + pendHtml;
+  const total = _existingPhotoUrls.length + _pendingPhotos.length;
   const btn = document.getElementById('photo-add-btn');
-  if (btn) btn.style.display = _pendingPhotos.length >= 4 ? 'none' : '';
+  if (btn) btn.style.display = total >= 4 ? 'none' : '';
 }
 
 function onPhotoSelected(event) {
   const file = event.target.files[0];
-  if (!file || _pendingPhotos.length >= 4) return;
+  if (!file || (_pendingPhotos.length + _existingPhotoUrls.length) >= 4) return;
   compressPhoto(file).then(b64 => {
     _pendingPhotos.push(b64);
     refreshPhotoUI();
@@ -4710,6 +4794,10 @@ function compressPhoto(file) {
 
 function removePhoto(index) {
   _pendingPhotos.splice(index, 1);
+  refreshPhotoUI();
+}
+function removeExistingPhoto(index) {
+  _existingPhotoUrls.splice(index, 1);
   refreshPhotoUI();
 }
 
@@ -4802,7 +4890,7 @@ function onMoxAmt() {
   document.getElementById('mox-final').textContent = sign + 'HKD ' + fmtN(final, false);
 }
 
-function saveEntry() {
+async function saveEntry() {
   const date   = document.getElementById('f-date')?.value;
   const rawAmt = parseFloat(document.getElementById('f-amount')?.value);
   const cat    = getCatVal('f-cat');
@@ -4820,21 +4908,36 @@ function saveEntry() {
   let amount;
   if (mtype === 'boc') {
     const absAmt = Math.abs(rawAmt);
-    if (cat === 'Interest' || cat === 'Deposit') amount =  absAmt;  // positive: income/deposit
-    else if (cat === 'Withdrawal')               amount = -absAmt;  // negative: withdrawal
-    else                                         amount = -absAmt;  // negative: shared expense
+    if (cat === 'Interest' || cat === 'Deposit') amount =  absAmt;
+    else if (cat === 'Withdrawal')               amount = -absAmt;
+    else                                         amount = -absAmt;
   } else {
-    amount = -Math.abs(rawAmt); // non-BOC / grocery: always an expense (negative)
+    amount = -Math.abs(rawAmt);
   }
 
   const subcat    = getCatVal('f-subcat');
   const subsubcat = getCatVal('f-subsubcat');
-  const isMox     = (cat === MOX_CAT || subcat === MOX_CAT); // Mox lives as a subcategory under Groceries & Food
+  const isMox     = (cat === MOX_CAT || subcat === MOX_CAT);
   const dbType = mtype==='boc'?'boc':mtype==='nonboc'?'nonboc':'grocery';
-  // Auto-add new entries at each level (no duplicates)
   if (cat && !(db.cats[dbType]||[]).includes(cat)) { if (!db.cats[dbType]) db.cats[dbType]=[]; db.cats[dbType].push(cat); }
   if (subcat)              _saveSubcat(dbType, cat, subcat);
   if (subcat && subsubcat) _saveSubSubcat(dbType, cat, subcat, subsubcat);
+
+  // ── Upload any new photos to Google Drive ──
+  const saveBtn = document.querySelector('#modal-body .btn-save');
+  let newPhotoUrls = [];
+  if (_pendingPhotos.length) {
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Uploading…'; }
+    try {
+      newPhotoUrls = await Promise.all(_pendingPhotos.map(b64 => uploadToDrive(b64)));
+    } catch(err) {
+      console.warn('[Drive] Photo upload failed:', err);
+      toast('Photo upload failed — entry saved without new photos', 'error', 5000);
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+    }
+  }
+  const allPhotoUrls = [..._existingPhotoUrls, ...newPhotoUrls];
 
   // ── EDIT MODE ──
   if (editId) {
@@ -4847,17 +4950,13 @@ function saveEntry() {
       if (!isInterest) arr[idx].paidBy = paidBy; else delete arr[idx].paidBy;
       if (subcat)    arr[idx].subcategory    = subcat;    else delete arr[idx].subcategory;
       if (subsubcat) arr[idx].subsubcategory = subsubcat; else delete arr[idx].subsubcategory;
-      if (_pendingPhotos.length) {
-        try {
-          savePhotos(editId, _pendingPhotos);
-          arr[idx].photoCount = _pendingPhotos.length;
-        } catch(err) {
-          console.warn('[Photos] Storage full, edit saved without photo:', err);
-          toast('Storage full — entry saved without photo', 'error', 5000);
-          delete arr[idx].photoCount;
-        }
-      } else { deletePhotos(editId); delete arr[idx].photoCount; }
-      delete arr[idx].photo; // remove old single-photo field if present
+      // Photos: Drive URLs only
+      if (allPhotoUrls.length) arr[idx].photoUrls = allPhotoUrls;
+      else delete arr[idx].photoUrls;
+      // Clean up legacy photo fields
+      delete arr[idx].photoCount;
+      delete arr[idx].photo;
+      deletePhotos(editId); // clear any localStorage leftovers
       arr[idx].updatedAt = new Date().toISOString();
       arr[idx].updatedBy = currentUser()||undefined;
       if (section==='groceries') {
@@ -4881,15 +4980,7 @@ function saveEntry() {
   // ── ADD MODE ──
   const _eid = uid();
   const e = {id:_eid, date, amount, notes, loggedBy: currentUser()||undefined, createdAt: new Date().toISOString()};
-  if (_pendingPhotos.length) {
-    try {
-      savePhotos(_eid, _pendingPhotos);
-      e.photoCount = _pendingPhotos.length;
-    } catch(err) {
-      console.warn('[Photos] Storage full, entry saved without photo:', err);
-      toast('Storage full — entry saved without photo', 'error', 5000);
-    }
-  }
+  if (allPhotoUrls.length) e.photoUrls = allPhotoUrls;
   if (!isInterest) e.paidBy = paidBy;
   if (subcat)    e.subcategory    = subcat;
   if (subsubcat) e.subsubcategory = subsubcat;
@@ -4898,7 +4989,6 @@ function saveEntry() {
   else if (mtype==='grocery') {
     e.category = cat;
     e.isHelper = isHelper;
-    // Apply Mox 3% cashback discount (Mox is a subcategory of Groceries & Food)
     if (isMox) {
       const sign = amount < 0 ? -1 : 1;
       e.amount = parseFloat((sign * Math.abs(amount) * 0.97).toFixed(2));
@@ -5141,7 +5231,7 @@ async function del(section, id) {
   const secLabel = section==='boc'?'BOC':section==='nonBoc'?'Other':section==='groceries'?'Groceries':'Trip';
   const desc = entry ? `${entry.category||''} — HKD ${fmtN(Math.abs(entry.amount))} on ${entry.date||''}` : '';
   if (!await confirmDialog({ title:'Delete this entry?', message:desc, confirmText:'Delete', danger:true })) return;
-  if (entry) { logActivity('delete', secLabel, `Deleted ${secLabel}: ${entry.category||''} ${fmtN(entry.amount)} on ${entry.date||''}`); deletePhotos(id); }
+  if (entry) { logActivity('delete', secLabel, `Deleted ${secLabel}: ${entry.category||''} ${fmtN(entry.amount)} on ${entry.date||''}`); deletePhotos(id); /* clears any legacy localStorage photos */ }
   db[section]=db[section].filter(t=>t.id!==id);
   save(); renderAll();
   toast('Entry deleted', 'info');
@@ -5893,7 +5983,7 @@ function dupEntry(section, id) {
   const entry = (db[section]||[]).find(t=>t.id===id);
   if (!entry) return;
   const type = section==='nonBoc'?'nonboc':section==='groceries'?'grocery':'boc';
-  mtype=type; editId=null;
+  mtype=type; editId=null; _pendingPhotos=[]; _existingPhotoUrls=[];
   document.getElementById('modal-body').innerHTML=buildModal(type);
   openModalOverlay();
   const h3=document.querySelector('#modal-body h3');
