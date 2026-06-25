@@ -4883,14 +4883,25 @@ function onPhotoSelected(event) {
     refreshPhotoUI();
     const inp = document.getElementById('f-photo-input');
     if (inp) inp.value = '';
+  }).catch(err => {
+    console.error('[Photo] Failed to process photo:', err);
+    toast('Could not add photo: ' + (err.message || err), 'error', 5000);
   });
 }
 
 function compressPhoto(file) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read photo file'));
     reader.onload = (e) => {
+      const originalDataUrl = e.target.result;
       const img = new Image();
+      img.onerror = () => {
+        // Fallback: use the raw data URL without canvas compression
+        // (handles HEIC and other formats iOS may pass through)
+        console.warn('[Photo] Image decode failed, using original data URL');
+        resolve(originalDataUrl);
+      };
       img.onload = () => {
         const MAX = 900;
         let w = img.width, h = img.height;
@@ -4900,10 +4911,15 @@ function compressPhoto(file) {
         }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.55));
+        try {
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.55));
+        } catch (canvasErr) {
+          console.warn('[Photo] Canvas compression failed, using original:', canvasErr);
+          resolve(originalDataUrl);
+        }
       };
-      img.src = e.target.result;
+      img.src = originalDataUrl;
     };
     reader.readAsDataURL(file);
   });
