@@ -2062,6 +2062,17 @@ body.light .field-err { color:#c33d22; }
 
 <!-- ─── SETTINGS ─── -->
 <div id="tab-settings" class="section">
+  <!-- Google Drive Photos -->
+  <div class="card ss">
+    <h3>Google Drive Photos</h3>
+    <div id="gd-status-text" style="font-size:.75rem;color:var(--text3);margin-bottom:14px;">Checking…</div>
+    <div class="settings-action-row">
+      <button class="settings-btn" id="gd-connect-btn" onclick="connectGoogleDrive()">
+        <svg viewBox="0 0 87.3 78" width="15" height="15" fill="currentColor"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3L27.5 53H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z" fill="#0066da"/><path d="M43.65 25L29.9 1.2C28.55.4 27 0 25.45 0c-1.55 0-3.1.4-4.5 1.2L3.4 20.5H16.2l27.45-11.5zM43.65 25l15.95 27.55H43.65zM87.3 53H59.85l-12.8 22.2c1.4.8 2.95 1.2 4.5 1.2h21.15c1.55 0 3.1-.4 4.5-1.2l3.85-6.65L87.3 53z" fill="#00ac47"/><path d="M43.65 25L27.5 53h32.35L43.65 25zM60.1 1.2C58.7.4 57.15 0 55.6 0H25.45L43.65 25l27.5-11.5-11.05-12.3z" fill="#ea4335"/><path d="M43.65 25L16.2 20.5H3.4C1.3 23.9 0 27.85 0 32.1v6.55l27.5 14.35L43.65 53V25z" fill="#00832d"/><path d="M59.85 53H27.5L43.65 78h11.9c1.55 0 3.1-.4 4.5-1.2l16.55-9.55L87.3 53H59.85z" fill="#2684fc"/></svg>
+        Connect Google Drive
+      </button>
+    </div>
+  </div>
   <!-- Your Name -->
   <div class="card ss">
     <h3>Your Name</h3>
@@ -2350,11 +2361,11 @@ const BIN_ID     = '6a26af29f5f4af5e29cb090c';
 const MASTER_KEY = '$2a$10$c56yg9pnfk1XFqce2F3I/OJqPCvlR2Fo1UskPXLdS1olIY.yu3W.e';
 const BIN_URL    = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
-// ── Google Drive photo storage (service account) ──────────────────────
-const GD_CLIENT_EMAIL = 'panorama-uploader@panorama-expenses-500503.iam.gserviceaccount.com';
-const GD_PRIVATE_KEY  = '-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC/C2zY7GX8dCVj\nq2u4YPov2e5uKc8ppD6orGPAqU/GjLUEFpsO15+7XByfm8/+gn/gaz75YmHWkF1k\nSh178hTOzDY2MBMgnXZpEDcgkyEISvf7Sza+r4ADhuQR376J7nuffQs/cuVCYHMx\nZhJCu/oWrAjfby9SwwwK6FaQ17i+7i0piEqgcR9BUZvT8EHEWndOeUibThnXdEHN\nmk1bFv8Dmu0IXwbGAfaPhybsEfP0SiTnsdBUYeN51y85uM7DPY9FhBbQ4m+Guxf7\nP4F4vESB+mcM1XCuotR5RGB7tLUYe2+sHzA4+Oiic5jgC22gRXUT3by5rY0e4nGa\nkKD8rj29AgMBAAECggEAAzWBFmMLfYJCmdoocjg9dkNOCXoDTvrsIITbcheF+Fr8\nXr1gd7nbJthaahCXHaUkhROtbZ6fmm03XGFlqGN9wlF/fEkyG7ikDgoQhagNrygk\njTXguAhA+WOGfjReF3ldiJAe+b8HfHtxQ+b9LzNyyncI+R59fYGQOLiusjp6vHOX\n+VR81lwoC0D7qdngYM4lVySYGvR/ifm1bYlsjeETRfdM3qcVQ5mv7OoccoxCtZT8\nLjxglrVv+q23jFxZiOeJNdo0d9PxtSE/6SxDGrpR+/Tox16L94niiW6YJPB6lMaL\nylw9SXuyW7o1yENtd6uqQ5L9oamnu3J6k18Yy4OygQKBgQDhT1SAvUupux8Rr2TC\n/ZCnvobVgQtj5OjBFY8duTD4L6h7XO3la2yCT6nwjseS0ucLScQPMZgsVeyk/hu/\nv/xOAxI8/Pm5cDxD+dXZ2GRvKweBNMawUFhXftq316Z6g20WocISpk2elEKTlf0n\nQH5rlXjn+pUrx4qN7U08ekOVfQKBgQDZET+SMB9HsZnF1KeAydg73StUAb27TWBF\nUpHP3fueU0pZB7ymt88ywz852r4DhsXfi0W9AeomvOOggD1jXqGLCwBAr2s94Wf9\naul0Y9HflcMri2Uku6fq3MVODepLf9NXjPkVk17bB6oFwrNy4oSU2jsoFJGQVNo6\nm7RL1Ui9QQKBgEmTFzwnFIMrmLy0ssm99bPhUrR7vFV1ldAfkymYpPYW0gTe1sy5\nJKj1DMCCT4eRmWMlRoHTpyarNGi4liUqs2BiPl1uGrpEfVmRRxUpRbrLqVq2+j7v\nLbn8sb2hDTsqmb/vOKnQZr5nGcqKCy37MI0/NUlDmdy+/27TVApwvosdAoGAd1za\nvkKkEMKCspybd2CG/XRDTTCf6o1D8RrUf5+rq4ZVjduJS4wr7dgbvm6gqkPEL4bg\nVGznG2InMa0TFL+GyXTFMMzFhgObMWlG8u+pCu/JoPpIJgji721zOdbBDb8+shgd\nKFYfhQYT4pMMJpKVIV1XxlR5LwrZ7fyNCl5AX4ECgYBdxlm2epKKLJYkhDMT7fgq\nM83arM065E0PTRFVaaSjrgLFEnoMXPNhJ+YmEvuKl5r5qOVQ7cTn4rjP9akwLxfw\nRyISCSp7CEfNbgdNfkKLEleLvi0l2LSIcnbn6Z8ceLmGIjrfGLGvGfEeYO2m7kKl\n8bWnErI5N2CcDudbZlUaeA==\n-----END PRIVATE KEY-----\n';
-const GD_FOLDER_ID    = '1MW4DqcurNUzq3f6gtSgjw65-hWyNhSVc';
-let _gdToken = null, _gdTokenExpiry = 0;
+// ── Google Drive photo storage (OAuth 2.0 + PKCE) ────────────────────
+const GD_CLIENT_ID     = '18410729490-7jrlskokta0u7nfqk690d0b51ad0n7c5.apps.googleusercontent.com';
+const GD_CLIENT_SECRET = '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';
+const GD_REDIRECT_URI  = 'https://andrewsheung-netizen.github.io/panorama-expenses/';
+let _gdAccessToken = null, _gdAccessTokenExpiry = 0;
 
 let _saveTimer = null;
 function setSyncDot(state) { // 'pending'|'saving'|'saved'|'error'
@@ -4147,6 +4158,20 @@ function renderGroceries() {
 //  SETTINGS
 // ══════════════════════════════════════
 function renderSettings() {
+  // Google Drive connection status
+  const gdText = document.getElementById('gd-status-text');
+  const gdBtn  = document.getElementById('gd-connect-btn');
+  if (gdText) {
+    if (db._gdRefreshToken) {
+      gdText.textContent = 'Connected — photos save to Andrew\'s Google Drive.';
+      gdText.style.color = 'var(--green, #4caf50)';
+      if (gdBtn) gdBtn.textContent = 'Reconnect';
+    } else {
+      gdText.textContent = 'Not connected — tap below to sign in with Andrew\'s Google account.';
+      gdText.style.color = 'var(--text3)';
+      if (gdBtn) gdBtn.textContent = 'Connect Google Drive';
+    }
+  }
   // Populate username field
   const uname = localStorage.getItem('pano_username') || '';
   const uCur = document.getElementById('settings-username-cur');
@@ -4639,46 +4664,116 @@ function deletePhotos(entryId) {
   }
 }
 
-// ── Google Drive upload helpers ─────────────────────────────────────────────
+// ── Google Drive helpers (OAuth 2.0 + PKCE) ────────────────────────────────
 function _b64url(input) {
   const str = (typeof input === 'string')
     ? btoa(input)
     : btoa(String.fromCharCode(...new Uint8Array(input)));
   return str.replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
 }
-async function getGDToken() {
-  if (_gdToken && _gdTokenExpiry > Date.now()) return _gdToken;
-  const now = Math.floor(Date.now() / 1000);
-  const hdr = _b64url(JSON.stringify({alg:'RS256',typ:'JWT'}));
-  const pay = _b64url(JSON.stringify({
-    iss: GD_CLIENT_EMAIL,
-    scope: 'https://www.googleapis.com/auth/drive',
-    aud: 'https://oauth2.googleapis.com/token',
-    exp: now + 3600, iat: now,
-  }));
-  const sigInput = hdr + '.' + pay;
-  const pem = GD_PRIVATE_KEY.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g,'');
-  const keyBuf = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8', keyBuf.buffer,
-    {name:'RSASSA-PKCS1-v1_5', hash:'SHA-256'}, false, ['sign']
-  );
-  const sigBuf = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(sigInput));
-  const jwt = sigInput + '.' + _b64url(sigBuf);
+function _generateCodeVerifier() {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return _b64url(arr);
+}
+async function _generateCodeChallenge(verifier) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return _b64url(digest);
+}
+async function connectGoogleDrive() {
+  const verifier = _generateCodeVerifier();
+  const challenge = await _generateCodeChallenge(verifier);
+  localStorage.setItem('gd_pkce_verifier', verifier); // localStorage survives PWA redirect
+  const params = new URLSearchParams({
+    client_id: GD_CLIENT_ID,
+    redirect_uri: GD_REDIRECT_URI,
+    response_type: 'code',
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    access_type: 'offline',
+    prompt: 'consent', // always return refresh_token
+  });
+  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params;
+}
+async function handleOAuthCallback() {
+  const url = new URL(window.location.href);
+  const code  = url.searchParams.get('code');
+  const error = url.searchParams.get('error');
+  if (!code && !error) return; // normal app load — nothing to do
+  window.history.replaceState({}, '', GD_REDIRECT_URI); // clean URL
+  if (error) { toast('Google sign-in cancelled', 'info'); return; }
+  const verifier = localStorage.getItem('gd_pkce_verifier');
+  localStorage.removeItem('gd_pkce_verifier');
+  if (!verifier) { toast('Drive auth error: session expired, try again', 'error'); return; }
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: {'Content-Type':'application/x-www-form-urlencoded'},
-    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+    body: new URLSearchParams({
+      code, client_id: GD_CLIENT_ID, client_secret: GD_CLIENT_SECRET,
+      redirect_uri: GD_REDIRECT_URI, grant_type: 'authorization_code',
+      code_verifier: verifier,
+    }),
+  });
+  const data = await res.json();
+  if (!data.refresh_token) {
+    console.error('[Drive] OAuth failed:', data);
+    toast('Drive connection failed: ' + (data.error_description || data.error || 'unknown'), 'error', 8000);
+    return;
+  }
+  db._gdRefreshToken = data.refresh_token;
+  db._gdFolderId = null; // reset so a fresh folder is found/created
+  if (data.access_token) {
+    _gdAccessToken = data.access_token;
+    _gdAccessTokenExpiry = Date.now() + ((data.expires_in || 3600) - 60) * 1000;
+  }
+  save();
+  renderSettings();
+  toast('Google Drive connected! Photos will now save to your Drive.', 'success', 5000);
+  switchTab('settings');
+}
+async function getGDToken() {
+  if (_gdAccessToken && _gdAccessTokenExpiry > Date.now()) return _gdAccessToken;
+  const refreshToken = db._gdRefreshToken;
+  if (!refreshToken) throw new Error('Google Drive not connected — go to Settings to connect.');
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: GD_CLIENT_ID,
+      client_secret: GD_CLIENT_SECRET,
+    }),
   });
   const data = await res.json();
   if (!data.access_token) {
-    const msg = 'GD auth failed: ' + JSON.stringify(data);
+    const msg = 'Token refresh failed: ' + JSON.stringify(data);
     console.error('[Drive]', msg);
     throw new Error(msg);
   }
-  _gdToken = data.access_token;
-  _gdTokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
-  return _gdToken;
+  _gdAccessToken = data.access_token;
+  _gdAccessTokenExpiry = Date.now() + ((data.expires_in || 3600) - 60) * 1000;
+  return _gdAccessToken;
+}
+async function getOrCreateDriveFolder() {
+  if (db._gdFolderId) return db._gdFolderId;
+  const token = await getGDToken();
+  // Search for existing folder created by this app
+  const q = encodeURIComponent("name='Panorama Expenses Photos' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+  const sr = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {headers:{Authorization:'Bearer '+token}});
+  const sd = await sr.json();
+  if (sd.files?.length) { db._gdFolderId = sd.files[0].id; save(); return db._gdFolderId; }
+  // Create folder
+  const cr = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method:'POST', headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+    body: JSON.stringify({name:'Panorama Expenses Photos', mimeType:'application/vnd.google-apps.folder'}),
+  });
+  const folder = await cr.json();
+  if (!folder.id) throw new Error('Could not create Drive folder: ' + JSON.stringify(folder));
+  db._gdFolderId = folder.id;
+  save();
+  return db._gdFolderId;
 }
 async function uploadToDrive(b64DataUrl) {
   const token = await getGDToken();
@@ -4688,8 +4783,9 @@ async function uploadToDrive(b64DataUrl) {
   const buf = new Uint8Array(bytes.length);
   for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
   const blob = new Blob([buf], {type: mime});
+  const folderId = await getOrCreateDriveFolder();
   const filename = 'pano_' + Date.now() + (mime.includes('png') ? '.png' : '.jpg');
-  const meta = JSON.stringify({name: filename, parents: [GD_FOLDER_ID]});
+  const meta = JSON.stringify({name: filename, parents: [folderId]});
   const form = new FormData();
   form.append('metadata', new Blob([meta], {type:'application/json'}));
   form.append('file', blob);
@@ -6153,6 +6249,8 @@ function sortArrow(section, col) {
   const lastTab = localStorage.getItem('pano_tab');
   if (lastTab && TABS.includes(lastTab)) switchTab(lastTab);
   maybeShowNamePrompt();
+  // Handle Google OAuth redirect callback (if returning from Google sign-in)
+  await handleOAuthCallback();
 })();
 
 // ══════════════════════════════════════
