@@ -4703,6 +4703,19 @@ async function uploadToDrive(b64DataUrl) {
   });
   return 'https://drive.google.com/uc?export=view&id=' + file.id;
 }
+async function deleteDrivePhotos(entry) {
+  if (!entry?.photoUrls?.length) return;
+  const token = await getGDToken().catch(() => null);
+  if (!token) return;
+  await Promise.allSettled(entry.photoUrls.map(url => {
+    const id = new URL(url).searchParams.get('id');
+    if (!id) return Promise.resolve();
+    return fetch(`https://www.googleapis.com/drive/v3/files/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token },
+    });
+  }));
+}
 
 // Returns HTML for photo thumbnails in table rows
 function photoThumbsHtml(entry) {
@@ -5231,7 +5244,7 @@ async function del(section, id) {
   const secLabel = section==='boc'?'BOC':section==='nonBoc'?'Other':section==='groceries'?'Groceries':'Trip';
   const desc = entry ? `${entry.category||''} — HKD ${fmtN(Math.abs(entry.amount))} on ${entry.date||''}` : '';
   if (!await confirmDialog({ title:'Delete this entry?', message:desc, confirmText:'Delete', danger:true })) return;
-  if (entry) { logActivity('delete', secLabel, `Deleted ${secLabel}: ${entry.category||''} ${fmtN(entry.amount)} on ${entry.date||''}`); deletePhotos(id); /* clears any legacy localStorage photos */ }
+  if (entry) { logActivity('delete', secLabel, `Deleted ${secLabel}: ${entry.category||''} ${fmtN(entry.amount)} on ${entry.date||''}`); deletePhotos(id); deleteDrivePhotos(entry); }
   db[section]=db[section].filter(t=>t.id!==id);
   save(); renderAll();
   toast('Entry deleted', 'info');
