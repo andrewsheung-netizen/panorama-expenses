@@ -4585,13 +4585,44 @@ function getPhotos(entryId) {
   return out;
 }
 function savePhotos(entryId, arr) {
-  arr.forEach((b64, i) => localStorage.setItem('pano_ph_' + entryId + '_' + i, b64));
-  // Clear any extras beyond new count
-  for (let i = arr.length; i < 10; i++) {
-    const k = 'pano_ph_' + entryId + '_' + i;
-    if (!localStorage.getItem(k)) break;
-    localStorage.removeItem(k);
+  const doWrite = () => {
+    arr.forEach((b64, i) => localStorage.setItem('pano_ph_' + entryId + '_' + i, b64));
+    for (let i = arr.length; i < 10; i++) {
+      const k = 'pano_ph_' + entryId + '_' + i;
+      if (!localStorage.getItem(k)) break;
+      localStorage.removeItem(k);
+    }
+  };
+  try {
+    doWrite();
+  } catch(err) {
+    // Clean up any partial writes for this entry
+    for (let i = 0; i < arr.length; i++) localStorage.removeItem('pano_ph_' + entryId + '_' + i);
+    // Auto-purge orphaned photos (keys for deleted entries) and retry once
+    const freed = purgeOrphanedPhotos();
+    if (freed > 0) {
+      try { doWrite(); return; } catch(e2) { /* still full — fall through and re-throw */ }
+    }
+    throw err; // caller decides how to handle
   }
+}
+// Remove pano_ph_* keys whose entry IDs no longer exist in db
+function purgeOrphanedPhotos() {
+  const validIds = new Set(
+    [...(db.boc||[]), ...(db.nonBoc||[]), ...(db.groceries||[])]
+      .filter(e => e.photoCount)
+      .map(e => e.id)
+  );
+  const toDelete = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith('pano_ph_')) continue;
+    // key format: pano_ph_{entryId}_{index}  (entryId has no underscores)
+    const parts = k.split('_');
+    if (parts.length >= 4 && !validIds.has(parts[2])) toDelete.push(k);
+  }
+  toDelete.forEach(k => localStorage.removeItem(k));
+  return toDelete.length;
 }
 function deletePhotos(entryId) {
   for (let i = 0; i < 10; i++) {
@@ -4605,9 +4636,13 @@ function photoThumbsHtml(entry) {
   if (!entry) return '';
   // Migrate old single-photo format to localStorage
   if (entry.photo) {
-    savePhotos(entry.id, [entry.photo]);
-    entry.photoCount = 1;
-    delete entry.photo;
+    try {
+      savePhotos(entry.id, [entry.photo]);
+      entry.photoCount = 1;
+      delete entry.photo;
+    } catch(err) {
+      console.warn('[Photos] Migration failed (storage full):', err);
+    }
   }
   if (!entry.photoCount) return '';
   const photos = getPhotos(entry.id);
@@ -4812,8 +4847,16 @@ function saveEntry() {
       if (!isInterest) arr[idx].paidBy = paidBy; else delete arr[idx].paidBy;
       if (subcat)    arr[idx].subcategory    = subcat;    else delete arr[idx].subcategory;
       if (subsubcat) arr[idx].subsubcategory = subsubcat; else delete arr[idx].subsubcategory;
-      if (_pendingPhotos.length) { savePhotos(editId, _pendingPhotos); arr[idx].photoCount = _pendingPhotos.length; }
-      else { deletePhotos(editId); delete arr[idx].photoCount; }
+      if (_pendingPhotos.length) {
+        try {
+          savePhotos(editId, _pendingPhotos);
+          arr[idx].photoCount = _pendingPhotos.length;
+        } catch(err) {
+          console.warn('[Photos] Storage full, edit saved without photo:', err);
+          toast('Storage full — entry saved without photo', 'error', 5000);
+          delete arr[idx].photoCount;
+        }
+      } else { deletePhotos(editId); delete arr[idx].photoCount; }
       delete arr[idx].photo; // remove old single-photo field if present
       arr[idx].updatedAt = new Date().toISOString();
       arr[idx].updatedBy = currentUser()||undefined;
@@ -4838,7 +4881,15 @@ function saveEntry() {
   // ── ADD MODE ──
   const _eid = uid();
   const e = {id:_eid, date, amount, notes, loggedBy: currentUser()||undefined, createdAt: new Date().toISOString()};
-  if (_pendingPhotos.length) { savePhotos(_eid, _pendingPhotos); e.photoCount = _pendingPhotos.length; }
+  if (_pendingPhotos.length) {
+    try {
+      savePhotos(_eid, _pendingPhotos);
+      e.photoCount = _pendingPhotos.length;
+    } catch(err) {
+      console.warn('[Photos] Storage full, entry saved without photo:', err);
+      toast('Storage full — entry saved without photo', 'error', 5000);
+    }
+  }
   if (!isInterest) e.paidBy = paidBy;
   if (subcat)    e.subcategory    = subcat;
   if (subsubcat) e.subsubcategory = subsubcat;
