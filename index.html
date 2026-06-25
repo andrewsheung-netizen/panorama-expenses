@@ -4799,20 +4799,18 @@ async function uploadToDrive(b64DataUrl) {
     console.error('[Drive]', msg);
     throw new Error(msg);
   }
-  // Make publicly accessible via link so any device can load the image URL
-  await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
-    method:'POST',
-    headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
-    body: JSON.stringify({role:'reader', type:'anyone'}),
-  });
-  return 'https://drive.google.com/uc?export=view&id=' + file.id;
+  // Store as gd:<fileId> — loaded on display via Drive API with OAuth token
+  // (no public sharing needed; works in PWA without Google cookies)
+  return 'gd:' + file.id;
 }
 async function deleteDrivePhotos(entry) {
   if (!entry?.photoUrls?.length) return;
   const token = await getGDToken().catch(() => null);
   if (!token) return;
   await Promise.allSettled(entry.photoUrls.map(url => {
-    const id = new URL(url).searchParams.get('id');
+    let id;
+    if (url.startsWith('gd:')) { id = url.slice(3); }
+    else { try { id = new URL(url).searchParams.get('id'); } catch(e) { return Promise.resolve(); } }
     if (!id) return Promise.resolve();
     return fetch(`https://www.googleapis.com/drive/v3/files/${id}`, {
       method: 'DELETE',
@@ -4821,14 +4819,62 @@ async function deleteDrivePhotos(entry) {
   }));
 }
 
+// ── Drive image display (fetched via API with auth — no public sharing needed) ──
+const _gdBlobCache = {}; // fileId → blob URL (session cache, cleared on page reload)
+async function loadDriveImages(container) {
+  const root = container || document;
+  const imgs = [...root.querySelectorAll('img[data-gdid]')].filter(img => !img.dataset.blobSrc);
+  if (!imgs.length) return;
+  let token;
+  try { token = await getGDToken(); } catch(e) {
+    console.warn('[Drive] loadDriveImages: could not get token', e);
+    toast('Photos: Drive token error — ' + (e.message||e), 'error', 6000);
+    return;
+  }
+  await Promise.allSettled(imgs.map(async img => {
+    const fileId = img.dataset.gdid;
+    if (!fileId) return;
+    if (_gdBlobCache[fileId]) {
+      img.src = _gdBlobCache[fileId];
+      img.dataset.blobSrc = _gdBlobCache[fileId];
+      return;
+    }
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        { headers: { Authorization: 'Bearer ' + token } }
+      );
+      if (!res.ok) {
+        const body = await res.text().catch(()=>'');
+        console.warn('[Drive] Photo fetch failed', res.status, body);
+        toast('Photo load error ' + res.status + (body ? ': ' + body.slice(0,80) : ''), 'error', 8000);
+        return;
+      }
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      _gdBlobCache[fileId] = blobUrl;
+      img.src = blobUrl;
+      img.dataset.blobSrc = blobUrl;
+    } catch(e) {
+      console.warn('[Drive] Could not load image', fileId, e);
+      toast('Photo load failed: ' + (e.message||e), 'error', 6000);
+    }
+  }));
+}
+
 // Returns HTML for photo thumbnails in table rows
 function photoThumbsHtml(entry) {
   if (!entry) return '';
-  // Primary: new Drive URL format
+  // Primary: Drive-stored photos
   if (entry.photoUrls?.length) {
-    return entry.photoUrls.map(url =>
-      `<img class="photo-thumb" src="${url}" onclick="openLightbox(this.src)" title="View photo">`
-    ).join('');
+    return entry.photoUrls.map(url => {
+      if (url.startsWith('gd:')) {
+        // Fetched via Drive API with auth token after render
+        return `<img class="photo-thumb" data-gdid="${url.slice(3)}" src="" onclick="openLightbox(this.dataset.blobSrc||this.src)" title="View photo">`;
+      }
+      // Old public URL format (backward compat)
+      return `<img class="photo-thumb" src="${url}" onclick="openLightbox(this.src)" title="View photo">`;
+    }).join('');
   }
   // Backward compat: very old inline base64 (entry.photo)
   if (entry.photo) {
@@ -4857,12 +4903,15 @@ function photoRowHtml() {
 function refreshPhotoUI() {
   const area = document.getElementById('photo-preview-area');
   if (!area) return;
-  const existHtml = _existingPhotoUrls.map((url, i) =>
-    `<div class="photo-preview-wrap">
-      <img class="photo-preview-img" src="${url}" onclick="openLightbox(this.src)">
+  const existHtml = _existingPhotoUrls.map((url, i) => {
+    const imgAttrs = url.startsWith('gd:')
+      ? `data-gdid="${url.slice(3)}" src="" onclick="openLightbox(this.dataset.blobSrc||this.src)"`
+      : `src="${url}" onclick="openLightbox(this.src)"`;
+    return `<div class="photo-preview-wrap">
+      <img class="photo-preview-img" ${imgAttrs}>
       <button class="photo-remove-btn" onclick="removeExistingPhoto(${i})" title="Remove">✕</button>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
   const pendHtml = _pendingPhotos.map((b64, i) =>
     `<div class="photo-preview-wrap">
       <img class="photo-preview-img" src="${b64}" onclick="openLightbox(this.src)">
@@ -4870,6 +4919,7 @@ function refreshPhotoUI() {
     </div>`
   ).join('');
   area.innerHTML = existHtml + pendHtml;
+  loadDriveImages(area);
   const total = _existingPhotoUrls.length + _pendingPhotos.length;
   const btn = document.getElementById('photo-add-btn');
   if (btn) btn.style.display = total >= 4 ? 'none' : '';
@@ -5106,6 +5156,7 @@ async function saveEntry() {
     const secLabel = section==='boc'?'BOC':section==='nonBoc'?'Other':'Groceries';
     logActivity('edit', secLabel, `Edited ${secLabel} entry: ${cat} ${fmtN(amount)} on ${date}`);
     save(); renderDashboard(); closeModal();
+    loadDriveImages();
     toast(`${secLabel} entry updated`);
     return;
   }
@@ -5131,6 +5182,7 @@ async function saveEntry() {
   }
   const addedLabel = mtype==='boc'?'BOC':mtype==='nonboc'?'Other':'Groceries';
   save(); renderDashboard(); closeModal();
+  loadDriveImages();
   toast(`${addedLabel} entry added`);
 }
 
@@ -5721,7 +5773,7 @@ function applyMigrations() {
   }
 }
 
-function renderAll() { renderDashboard(); renderBOC(); renderNonBOC(); renderGroceries(); renderSettlements(); }
+function renderAll() { renderDashboard(); renderBOC(); renderNonBOC(); renderGroceries(); renderSettlements(); loadDriveImages(); }
 
 // ══════════════════════════════════════
 //  BACKUP / EXPORT / RESTORE
