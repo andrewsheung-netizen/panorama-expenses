@@ -4748,6 +4748,15 @@ async function getGDToken() {
   });
   const data = await res.json();
   if (!data.access_token) {
+    // invalid_grant = token was revoked (e.g. user reconnected Drive, generating a new token)
+    if (data.error === 'invalid_grant') {
+      db._gdRefreshToken = null;
+      db._gdFolderId = null;
+      _gdAccessToken = null;
+      save();
+      renderSettings();
+      throw new Error('Google Drive session expired — please reconnect in Settings → Google Drive Photos.');
+    }
     const msg = 'Token refresh failed: ' + JSON.stringify(data);
     console.error('[Drive]', msg);
     throw new Error(msg);
