@@ -5113,9 +5113,16 @@ function onMoxCat() {
   const cat    = getCatVal('f-cat');
   const subcat = getCatVal('f-subcat');
   const box = document.getElementById('mox-discount');
-  if (!box) return;
-  if (cat === MOX_CAT || subcat === MOX_CAT) { box.style.display='block'; onMoxAmt(); }
-  else box.style.display='none';
+  const isMoxSelected = cat === MOX_CAT || subcat === MOX_CAT;
+  if (box) { if (isMoxSelected) { box.style.display='block'; onMoxAmt(); } else box.style.display='none'; }
+  // Hide % off calculator when MOX is active (it already handles cashback at fixed 3%)
+  const cbToggle = document.getElementById('cashback-toggle');
+  const cbBox    = document.getElementById('cashback-box');
+  if (cbToggle) cbToggle.style.display = isMoxSelected ? 'none' : '';
+  if (isMoxSelected && cbBox && cbBox.style.display !== 'none') {
+    cbBox.style.display = 'none';
+    if (cbToggle) cbToggle.classList.remove('active');
+  }
 }
 function onMoxAmt() {
   const cat = getCatVal('f-cat');
