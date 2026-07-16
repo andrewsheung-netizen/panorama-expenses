@@ -490,6 +490,16 @@ body.light .cat-default-tag { color:#a8381a; background:#f7ddcf; }
 .mox-row { display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:.82rem; }
 .mox-row .mox-key { color:var(--text3); }
 .mox-row .mox-val { font-weight:600; color:var(--text2); }
+
+/* ══ CASHBACK CALCULATOR ══ */
+.cb-toggle-btn { font-size:.66rem; padding:2px 8px; border-radius:4px; background:var(--surface3); border:1px solid var(--border2); color:var(--text3); cursor:pointer; vertical-align:middle; margin-left:6px; font-family:inherit; transition:background .15s,color .15s; }
+.cb-toggle-btn.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+.cb-box { margin-top:8px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+.cb-slider-row { display:flex; align-items:center; gap:10px; font-size:.75rem; color:var(--text2); margin-bottom:6px; }
+.cb-slider-row input[type=range] { flex:1; accent-color:var(--blue); }
+#cb-pct-lbl { min-width:30px; text-align:right; font-weight:600; color:var(--text); }
+.cb-line { display:flex; justify-content:space-between; font-size:.74rem; color:var(--text2); padding:2px 0; }
+.cb-net { color:var(--green); font-weight:600; border-top:1px solid var(--border); margin-top:4px; padding-top:5px; }
 .mox-divider { border:none; border-top:1px dashed rgba(216,165,62,.25); margin:8px 0; }
 .mox-final-row { display:flex; justify-content:space-between; align-items:center; }
 .mox-final-row .mox-key { font-size:.82rem; color:#e0b34e; font-weight:700; }
@@ -5004,8 +5014,13 @@ function openLightbox(src) {
 function buildModal(type) {
   const dateAmt = `<div class="fg2">
     <div class="form-row"><label>Date</label><input type="date" id="f-date"></div>
-    <div class="form-row"><label>Amount (HKD)</label>
-      <input type="number" id="f-amount" step="0.01" min="0" placeholder="e.g. 1000">
+    <div class="form-row">
+      <label>Amount (HKD) <button type="button" class="cb-toggle-btn" id="cashback-toggle" onclick="toggleCashback()">% off</button></label>
+      <input type="number" id="f-amount" step="0.01" min="0" placeholder="e.g. 1000" oninput="onCashbackSlide()">
+      <div id="cashback-box" class="cb-box" style="display:none">
+        <div class="cb-slider-row"><span>Cashback</span><input type="range" id="cashback-slider" min="0" max="30" step="0.5" value="1" oninput="onCashbackSlide()"><span id="cb-pct-lbl">1%</span></div>
+        <div id="cb-preview"></div>
+      </div>
       <div class="ah">${type==='boc' ? 'Sign set automatically by category' : 'Enter the expense amount (positive)'}</div>
     </div></div>`;
 
@@ -5029,8 +5044,13 @@ function buildModal(type) {
 
   const grocDateAmt = `<div class="fg2">
     <div class="form-row"><label>Date</label><input type="date" id="f-date"></div>
-    <div class="form-row"><label>Amount (HKD)</label>
-      <input type="number" id="f-amount" step="0.01" min="0" placeholder="e.g. 1000" oninput="onMoxAmt()">
+    <div class="form-row">
+      <label>Amount (HKD) <button type="button" class="cb-toggle-btn" id="cashback-toggle" onclick="toggleCashback()">% off</button></label>
+      <input type="number" id="f-amount" step="0.01" min="0" placeholder="e.g. 1000" oninput="onMoxAmt();onCashbackSlide()">
+      <div id="cashback-box" class="cb-box" style="display:none">
+        <div class="cb-slider-row"><span>Cashback</span><input type="range" id="cashback-slider" min="0" max="30" step="0.5" value="1" oninput="onCashbackSlide()"><span id="cb-pct-lbl">1%</span></div>
+        <div id="cb-preview"></div>
+      </div>
       <div class="ah">Enter the expense amount (positive)</div>
     </div></div>`;
 
@@ -5049,6 +5069,42 @@ function buildModal(type) {
     <div class="form-row"><label>Notes</label><input type="text" id="f-notes" placeholder="Optional"></div>
     ${photoRowHtml()}
     <div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="saveEntry()">Save</button></div>`;
+}
+
+// ── CASHBACK CALCULATOR ──
+function toggleCashback() {
+  const box = document.getElementById('cashback-box');
+  const btn = document.getElementById('cashback-toggle');
+  if (!box) return;
+  const isOpen = box.style.display !== 'none';
+  box.style.display = isOpen ? 'none' : '';
+  if (btn) btn.classList.toggle('active', !isOpen);
+  if (!isOpen) onCashbackSlide();
+}
+function onCashbackSlide() {
+  const slider  = document.getElementById('cashback-slider');
+  const preview = document.getElementById('cb-preview');
+  const pctLbl  = document.getElementById('cb-pct-lbl');
+  if (!slider) return;
+  const pct = parseFloat(slider.value) || 0;
+  const pctStr = (pct % 1 === 0 ? pct : pct.toFixed(1)) + '%';
+  if (pctLbl) pctLbl.textContent = pctStr;
+  if (!preview) return;
+  const gross = parseFloat(document.getElementById('f-amount')?.value);
+  if (isNaN(gross) || gross <= 0) { preview.innerHTML = ''; return; }
+  const saving = gross * pct / 100;
+  const net    = gross - saving;
+  preview.innerHTML = `<div class="cb-line"><span>Gross</span><span>HKD ${fmtN(gross,false)}</span></div>
+    <div class="cb-line"><span>−${pctStr} cashback</span><span>−HKD ${fmtN(saving,false)}</span></div>
+    <div class="cb-line cb-net"><span>You pay</span><span>HKD ${fmtN(net,false)}</span></div>`;
+}
+function getCashbackAmt(gross) {
+  const box    = document.getElementById('cashback-box');
+  const slider = document.getElementById('cashback-slider');
+  if (!box || box.style.display === 'none' || !slider) return null;
+  const pct = parseFloat(slider.value) || 0;
+  if (pct === 0 || isNaN(gross) || gross <= 0) return null;
+  return parseFloat((gross * (1 - pct / 100)).toFixed(2));
 }
 
 // ── MOX DISCOUNT HELPERS ──
@@ -5084,7 +5140,8 @@ function onMoxAmt() {
 
 async function saveEntry() {
   const date   = document.getElementById('f-date')?.value;
-  const rawAmt = parseFloat(document.getElementById('f-amount')?.value);
+  const _grossAmt = parseFloat(document.getElementById('f-amount')?.value);
+  const rawAmt = getCashbackAmt(_grossAmt) ?? _grossAmt;
   const cat    = getCatVal('f-cat');
   const notes  = (document.getElementById('f-notes')?.value||'').trim();
   const isInterest = (mtype === 'boc' && cat === 'Interest');
