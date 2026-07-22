@@ -2583,7 +2583,7 @@ async function initDB() {
   setSyncDot('saving');
   try {
     const res = await fetch(GIST_URL, {
-      headers:{'Authorization':`token ${GITHUB_TOKEN}`}
+      headers:{'Authorization':`token ${getGithubToken()}`}
     });
     if (res.ok) {
       const json = await res.json();
