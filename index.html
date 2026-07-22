@@ -4467,7 +4467,7 @@ function addCat(type) {
 }
 async function removeCat(type,idx) {
   const name = db.cats[type][idx];
-  if (!await confirmDialog({ title:`Remove category “${name}”?`, message:'This only removes it from the list — existing entries are unchanged.', confirmText:'Remove', danger:true })) return;
+  if (!await confirmDialog({ title:`Remove category "${name}"?`, message:'This only removes it from the list — existing entries are unchanged.', confirmText:'Remove', danger:true })) return;
   db.cats[type].splice(idx,1); save(); renderCatList(type);
 }
 function saveOpeningBalances() {
@@ -5873,7 +5873,7 @@ function confirmTripSettle(tripId) {
   if (!trip.settlements) trip.settlements=[];
   trip.settlements.push(record);
   save(); closeModal(); renderTrips();
-  toast(`“${trip.name}” settled as of ${date}`);
+  toast(`"${trip.name}" settled as of ${date}`);
 }
 
 async function undoTripSettle(tripId) {
@@ -5881,7 +5881,7 @@ async function undoTripSettle(tripId) {
   if (!trip) return;
   const last = (trip.settlements||[]).slice().reverse().find(s=>!s.undone);
   if (!last) { toast('No settlement to undo.', 'info'); return; }
-  if (!await confirmDialog({ title:`Undo settlement from ${last.date}?`, message:`For “${trip.name}”.`, confirmText:'Undo settlement' })) return;
+  if (!await confirmDialog({ title:`Undo settlement from ${last.date}?`, message:`For "${trip.name}".`, confirmText:'Undo settlement' })) return;
   last.undone = true; last.undoneDate = today();
   trip.openingAndrew = last.prevOpeningAndrew;
   trip.openingGloria = last.prevOpeningGloria;
@@ -5894,7 +5894,7 @@ async function deleteTrip(tripId) {
   if (!trip) return;
   const count = (db.tripExpenses||[]).filter(e=>e.tripId===tripId).length;
   if (!await confirmDialog({
-    title:`Delete “${trip.name}”?`,
+    title:`Delete "${trip.name}"?`,
     message:`${count?'This trip and its '+count+' expense(s) will be removed. ':''}This cannot be undone.`,
     confirmText:'Delete trip', danger:true
   })) return;
@@ -5947,7 +5947,7 @@ function saveNewTrip() {
   };
   db.trips.push(trip);
   save(); closeModal(); renderTrips();
-  toast(`Trip “${name}” created`);
+  toast(`Trip "${name}" created`);
 }
 
 function openTripExpenseModal(tripId) {
@@ -6143,7 +6143,7 @@ function restoreJSON() {
     r.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
-        if (!data.opening || !data.boc) throw new Error(‘Invalid’);
+        if (!data.opening || !data.boc) throw new Error('Invalid');
         // Sanitize subcats keys: Firebase rejects keys with dots
         if (data.subcats) {
           for (const type of Object.keys(data.subcats)) {
@@ -6151,12 +6151,12 @@ function restoreJSON() {
               const subs = data.subcats[type][cat];
               if (!subs) continue;
               for (const sub of Object.keys(subs)) {
-                if (sub.includes(‘.’)) {
-                  const clean = sub.replace(/\./g, ‘’);
+                if (sub.includes('.')) {
+                  const clean = sub.replace(/\./g, '');
                   subs[clean] = subs[sub];
                   delete subs[sub];
                   // Update any entries referencing the old name
-                  for (const arr of [‘boc’,’nonBoc’,’groceries’,’settlements’]) {
+                  for (const arr of ['boc','nonBoc','groceries','settlements']) {
                     (data[arr]||[]).forEach(e => { if (e.subcategory === sub) e.subcategory = clean; });
                   }
                 }
@@ -6166,8 +6166,8 @@ function restoreJSON() {
         }
         db = data; applyMigrations(); localStorage.setItem(SK, JSON.stringify(db));
         renderAll(); renderSettings();
-        pushToCloud().then(() => toast(‘Backup restored and synced to cloud’));
-      } catch { toast(‘That file isn’t a valid Panorama backup.’, ‘error’, 4500); }
+        pushToCloud().then(() => toast('Backup restored and synced to cloud'));
+      } catch { toast("That file isn't a valid Panorama backup.", 'error', 4500); }
     };
     r.readAsText(f);
   };
