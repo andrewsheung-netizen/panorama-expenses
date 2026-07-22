@@ -2498,9 +2498,37 @@ async function initDB() {
       const rec  = json.record;
       // Use cloud data only if it looks like real app data (has opening or boc key)
       if (rec && (rec.opening || rec.boc)) {
+        // Rescue local-only entries not yet in cloud (saved within the debounce window
+        // before a refresh, or if the last cloud push failed silently)
+        let mergedAny = false;
+        if (local) {
+          for (const key of SYNC_ARRAYS) {
+            if (!Array.isArray(local[key])) continue;
+            const cloudIds = new Set((rec[key]||[]).map(e=>e.id).filter(Boolean));
+            const localOnly = local[key].filter(e => e.id && !cloudIds.has(e.id));
+            if (localOnly.length) {
+              rec[key] = [...localOnly, ...(rec[key]||[])];
+              mergedAny = true;
+            }
+          }
+        }
         db = rec;
-        _cloudBaseVersion = rec._savedAt || null; // remember what version we loaded
-        localStorage.setItem(SK, JSON.stringify(db)); // sync local cache
+        _cloudBaseVersion = rec._savedAt || null;
+        localStorage.setItem(SK, JSON.stringify(db));
+        // Immediately push merged entries so other devices (and future reloads) see them
+        if (mergedAny) {
+          try {
+            db._savedAt = new Date().toISOString();
+            _cloudBaseVersion = db._savedAt;
+            localStorage.setItem(SK, JSON.stringify(db));
+            const pr = await fetch(BIN_URL, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
+              body: JSON.stringify(db)
+            });
+            if (!pr.ok) throw new Error(pr.status);
+          } catch(me) { console.warn('[Sync] Could not push rescued entries to cloud:', me); }
+        }
       }
     }
     setSyncDot('saved');
