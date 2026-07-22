@@ -6143,10 +6143,31 @@ function restoreJSON() {
     r.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
-        if (!data.opening || !data.boc) throw new Error('Invalid');
-        db = data; applyMigrations(); save(); renderAll(); renderSettings();
-        toast('Backup restored');
-      } catch { toast('That file isn’t a valid Panorama backup.', 'error', 4500); }
+        if (!data.opening || !data.boc) throw new Error(‘Invalid’);
+        // Sanitize subcats keys: Firebase rejects keys with dots
+        if (data.subcats) {
+          for (const type of Object.keys(data.subcats)) {
+            for (const cat of Object.keys(data.subcats[type]||{})) {
+              const subs = data.subcats[type][cat];
+              if (!subs) continue;
+              for (const sub of Object.keys(subs)) {
+                if (sub.includes(‘.’)) {
+                  const clean = sub.replace(/\./g, ‘’);
+                  subs[clean] = subs[sub];
+                  delete subs[sub];
+                  // Update any entries referencing the old name
+                  for (const arr of [‘boc’,’nonBoc’,’groceries’,’settlements’]) {
+                    (data[arr]||[]).forEach(e => { if (e.subcategory === sub) e.subcategory = clean; });
+                  }
+                }
+              }
+            }
+          }
+        }
+        db = data; applyMigrations(); localStorage.setItem(SK, JSON.stringify(db));
+        renderAll(); renderSettings();
+        pushToCloud().then(() => toast(‘Backup restored and synced to cloud’));
+      } catch { toast(‘That file isn’t a valid Panorama backup.’, ‘error’, 4500); }
     };
     r.readAsText(f);
   };
