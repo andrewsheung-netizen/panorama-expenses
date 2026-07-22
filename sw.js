@@ -6,7 +6,7 @@
  *   - EmailJS CDN                         → Cache-first (rarely changes)
  */
 
-const CACHE_VERSION = 'panorama-v39';
+const CACHE_VERSION = 'panorama-v40';
 
 const APP_SHELL = [
   './',
@@ -59,9 +59,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // GitHub Gist API → Network-first, fall back to cache
+  // GitHub Gist API — let browser handle directly (SW must not intercept cross-origin auth requests)
   if (url.hostname === 'api.github.com') {
-    event.respondWith(networkFirst(event.request));
     return;
   }
 
