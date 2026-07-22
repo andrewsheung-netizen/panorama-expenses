@@ -2462,10 +2462,23 @@ function save() {
   localStorage.setItem(SK, JSON.stringify(db)); // instant local cache
   setSyncDot('pending');
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(pushToCloud, 1400); // debounce — coalesce rapid edits
+  _saveTimer = setTimeout(pushToCloud, 600); // debounce — coalesce rapid edits
   _lastSyncTime = Date.now();
   updateSyncTimestamp();
 }
+
+// Flush any pending cloud push immediately when the page hides or unloads
+// (PWA "switch app", tab close, refresh — browser kills pending async JS otherwise)
+function _flushSave() {
+  if (!_saveTimer) return;
+  clearTimeout(_saveTimer);
+  _saveTimer = null;
+  pushToCloud();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') _flushSave();
+});
+window.addEventListener('pagehide', _flushSave);  // fires on iOS Safari PWA close/switch
 
 let _lastSyncTime = null;
 let _syncTickTimer = null;
