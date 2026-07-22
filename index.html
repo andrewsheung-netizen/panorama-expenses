@@ -2375,10 +2375,11 @@ function newDB() {
     boc:[], nonBoc:[], groceries:[], settlements:[], recurring:[], activityLog:[]
   };
 }
-// ── Cloud sync (JSONBin) ──────────────────────────────────────────
-const BIN_ID     = '6a26af29f5f4af5e29cb090c';
-const MASTER_KEY = '$2a$10$c56yg9pnfk1XFqce2F3I/OJqPCvlR2Fo1UskPXLdS1olIY.yu3W.e';
-const BIN_URL    = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+// ── Cloud sync (GitHub Gist) ──────────────────────────────────────
+const GIST_ID     = 'a85d081c056aafbde258b01ede127ec9';
+const GITHUB_TOKEN = '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';
+const GIST_FILE   = 'panorama-expenses.json';
+const GIST_URL    = `https://api.github.com/gists/${GIST_ID}`;
 
 // ── Google Drive photo storage (OAuth 2.0 + PKCE) ────────────────────
 const GD_CLIENT_ID     = '118410729490-7jrlskokta0u7nfqk690d0b51ad0n7c5.apps.googleusercontent.com';
@@ -2406,12 +2407,12 @@ async function pushToCloud() {
   setSyncDot('saving');
   // ── 1. Conflict check (best-effort — NEVER blocks the save) ───────────────
   try {
-    const checkRes = await fetch(BIN_URL + '/latest', {
-      headers: { 'X-Master-Key': MASTER_KEY }
+    const checkRes = await fetch(GIST_URL, {
+      headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
     });
     if (checkRes.ok) {
       const cloudJson = await checkRes.json();
-      const cloudRec  = cloudJson.record;
+      const cloudRec  = JSON.parse((cloudJson.files[GIST_FILE]||{}).content || '{}');
       if (cloudRec && cloudRec._savedAt && cloudRec._savedAt !== _cloudBaseVersion) {
         let mergedAny = false;
         for (const key of SYNC_ARRAYS) {
@@ -2455,10 +2456,10 @@ async function pushToCloud() {
     db._savedAt = new Date().toISOString();
     _cloudBaseVersion = db._savedAt;
     localStorage.setItem(SK, JSON.stringify(db));
-    const res = await fetch(BIN_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-      body: JSON.stringify(db)
+    const res = await fetch(GIST_URL, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `token ${GITHUB_TOKEN}` },
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(db) } } })
     });
     if (!res.ok) throw new Error(res.status);
     setSyncDot('saved');
@@ -2528,12 +2529,12 @@ async function initDB() {
   // 2. Overlay with cloud (source of truth)
   setSyncDot('saving');
   try {
-    const res = await fetch(BIN_URL+'/latest', {
-      headers:{'X-Master-Key':MASTER_KEY}
+    const res = await fetch(GIST_URL, {
+      headers:{'Authorization':`token ${GITHUB_TOKEN}`}
     });
     if (res.ok) {
       const json = await res.json();
-      const rec  = json.record;
+      const rec  = JSON.parse((json.files[GIST_FILE]||{}).content || '{}');
       // Use cloud data only if it looks like real app data (has opening or boc key)
       if (rec && (rec.opening || rec.boc)) {
         // Rescue local-only entries not yet in cloud (saved within the debounce window
@@ -2581,10 +2582,10 @@ async function initDB() {
             db._savedAt = new Date().toISOString();
             _cloudBaseVersion = db._savedAt;
             localStorage.setItem(SK, JSON.stringify(db));
-            const pr = await fetch(BIN_URL, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-              body: JSON.stringify(db)
+            const pr = await fetch(GIST_URL, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `token ${GITHUB_TOKEN}` },
+              body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(db) } } })
             });
             if (!pr.ok) throw new Error(pr.status);
           } catch(me) { console.warn('[Sync] Could not push rescued entries to cloud:', me); }
@@ -5535,10 +5536,10 @@ async function forcePushToCloud() {
     db._savedAt = new Date().toISOString();
     _cloudBaseVersion = db._savedAt;
     localStorage.setItem(SK, JSON.stringify(db));
-    const res = await fetch(BIN_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-      body: JSON.stringify(db)
+    const res = await fetch(GIST_URL, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `token ${GITHUB_TOKEN}` },
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(db) } } })
     });
     if (!res.ok) throw new Error(res.status);
     setSyncDot('saved');

@@ -6,7 +6,7 @@
  *   - EmailJS CDN                         → Cache-first (rarely changes)
  */
 
-const CACHE_VERSION = 'panorama-v34';
+const CACHE_VERSION = 'panorama-v35';
 
 const APP_SHELL = [
   './',
@@ -59,8 +59,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // JSONBin API → Network-first, fall back to cache
-  if (url.hostname === 'api.jsonbin.io') {
+  // GitHub Gist API → Network-first, fall back to cache
+  if (url.hostname === 'api.github.com') {
     event.respondWith(networkFirst(event.request));
     return;
   }
