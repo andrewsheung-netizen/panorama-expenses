@@ -2524,6 +2524,20 @@ async function initDB() {
               mergedAny = true;
             }
           }
+          // Restore settled=true from local for entries already in cloud
+          // (prevents another device's stale push from un-settling entries)
+          for (const key of ['nonBoc', 'groceries']) {
+            if (!Array.isArray(local[key])) continue;
+            const localMap = new Map(local[key].filter(e=>e.id).map(e=>[e.id,e]));
+            for (const entry of (rec[key]||[])) {
+              const lc = localMap.get(entry.id);
+              if (lc && lc.settled && !entry.settled) {
+                entry.settled = true;
+                entry.settledDate = lc.settledDate || null;
+                mergedAny = true;
+              }
+            }
+          }
         }
         db = rec;
         _cloudBaseVersion = rec._savedAt || null;
@@ -5405,15 +5419,39 @@ async function confirmSettle() {
   db.settlements.push(record);
   logActivity('settle','Settlement',`Settled as of ${date}: ${summaryLine}`);
 
-  // Push immediately — settlement is critical; don't wait for the debounce
+  // Await the push — settlement is critical and we need to know if it reached the cloud
+  const settleBtn = document.querySelector('#modal-body .btn-save');
+  if (settleBtn) { settleBtn.disabled = true; settleBtn.textContent = 'Saving…'; }
   clearTimeout(_saveTimer); _saveTimer = null;
-  localStorage.setItem(SK, JSON.stringify(db));
   setSyncDot('pending');
   _lastSyncTime = Date.now(); updateSyncTimestamp();
-  pushToCloud();
+
+  let cloudOk = false;
+  try {
+    db._savedAt = new Date().toISOString();
+    _cloudBaseVersion = db._savedAt;
+    localStorage.setItem(SK, JSON.stringify(db));
+    const pr = await fetch(BIN_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
+      body: JSON.stringify(db)
+    });
+    cloudOk = pr.ok;
+    setSyncDot(cloudOk ? 'saved' : 'error');
+    if (!pr.ok) console.warn('[Settle] Cloud push failed:', pr.status);
+  } catch(e) {
+    console.warn('[Settle] Cloud push error:', e);
+    setSyncDot('error');
+    localStorage.setItem(SK, JSON.stringify(db)); // ensure local is saved even if cloud fails
+  }
+  if (settleBtn) { settleBtn.disabled = false; settleBtn.textContent = 'Confirm Settle'; }
 
   closeModal(); renderDashboard(); renderNonBOC(); renderGroceries(); renderSettlements();
-  toast(`Settled as of ${date}`);
+  if (cloudOk) {
+    toast(`Settled as of ${date}`);
+  } else {
+    toast(`Settled locally — cloud sync failed. Data is saved on this device. Try pulling to refresh later.`, 'info', 8000);
+  }
 }
 
 async function undoSettle() {
@@ -5511,7 +5549,7 @@ function renderSettlements() {
     return;
   }
 
-  tbody.innerHTML = db.settlements.slice().reverse().map(s => {
+  tbody.innerHTML = db.settlements.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.id||'').localeCompare(a.id||'')).map(s => {
     const diff = s.andrewBefore - s.gloriaBefore;
     let dir = '—';
     if (Math.abs(diff) >= 0.01) {
@@ -5880,6 +5918,20 @@ function applyMigrations() {
   if (!db.emailRecipients)               { db.emailRecipients=[]; }
   if (!db.emailConfig)                   { db.emailConfig={serviceId:'',templateId:'',publicKey:'',lastSentMonth:''}; }
   if (!db.subcats) { db.subcats={boc:{},nonboc:{},grocery:{}}; }
+  // Deduplicate settlement records: if the user retried settle after a failed sync,
+  // multiple records with identical (date, andrewBefore, gloriaBefore) can accumulate.
+  // Keep the most recent (highest id) for each group; always keep undone records.
+  {
+    const seen = new Set();
+    const byIdDesc = (db.settlements||[]).slice().sort((a,b)=>(b.id||'').localeCompare(a.id||''));
+    const deduped = [];
+    for (const s of byIdDesc) {
+      const key = s.undone ? s.id : `${s.date}|${s.andrewBefore}|${s.gloriaBefore}`;
+      if (!seen.has(key)) { seen.add(key); deduped.push(s); }
+    }
+    deduped.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.id||'').localeCompare(b.id||''));
+    db.settlements = deduped;
+  }
   // Migrate subcats from old array format to object format: {subcat:[sub2,..]}
   for (const type of ['boc','nonboc','grocery']) {
     if (!db.subcats[type]) { db.subcats[type]={}; continue; }
