@@ -2177,7 +2177,12 @@ body.light .field-err { color:#c33d22; }
   <!-- Sync -->
   <div class="card ss">
     <h3>Sync</h3>
-    <div style="font-size:.75rem;color:var(--text3);margin-bottom:14px">If this device has the correct data and the other device is out of date, use this to overwrite the cloud with what's on this device.</div>
+    <div style="font-size:.75rem;color:var(--text3);margin-bottom:14px">Enter your GitHub Personal Access Token (gist scope) to enable cloud sync. The token is stored only on this device.</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+      <input id="gh-token-input" type="password" placeholder="ghp_…" style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:.8rem" oninput="document.getElementById('gh-token-save').disabled=!this.value.trim()"/>
+      <button id="gh-token-save" class="settings-btn" disabled onclick="saveGithubToken()">Save</button>
+    </div>
+    <div id="gh-token-status" style="font-size:.72rem;color:var(--text3);margin-bottom:14px"></div>
     <div class="settings-action-row">
       <button class="settings-btn danger" onclick="forcePushToCloud()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><polyline points="5 12 12 5 19 12"/><path d="M5 19h14"/></svg>Force push this device's data to cloud</button>
     </div>
@@ -2376,10 +2381,11 @@ function newDB() {
   };
 }
 // ── Cloud sync (GitHub Gist) ──────────────────────────────────────
-const GIST_ID     = 'a85d081c056aafbde258b01ede127ec9';
-const GITHUB_TOKEN = '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';
-const GIST_FILE   = 'panorama-expenses.json';
-const GIST_URL    = `https://api.github.com/gists/${GIST_ID}`;
+const GIST_ID   = 'a85d081c056aafbde258b01ede127ec9';
+const GIST_FILE = 'panorama-expenses.json';
+const GIST_URL  = `https://api.github.com/gists/${GIST_ID}`;
+const TOKEN_KEY = 'pano_gh_token';
+function getGithubToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
 
 // ── Google Drive photo storage (OAuth 2.0 + PKCE) ────────────────────
 const GD_CLIENT_ID     = '118410729490-7jrlskokta0u7nfqk690d0b51ad0n7c5.apps.googleusercontent.com';
@@ -2408,7 +2414,7 @@ async function pushToCloud() {
   // ── 1. Conflict check (best-effort — NEVER blocks the save) ───────────────
   try {
     const checkRes = await fetch(GIST_URL, {
-      headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+      headers: { 'Authorization': `token ${getGithubToken()}` }
     });
     if (checkRes.ok) {
       const cloudJson = await checkRes.json();
@@ -2458,7 +2464,7 @@ async function pushToCloud() {
     localStorage.setItem(SK, JSON.stringify(db));
     const res = await fetch(GIST_URL, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `token ${GITHUB_TOKEN}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `token ${getGithubToken()}` },
       body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(db) } } })
     });
     if (!res.ok) throw new Error(res.status);
@@ -2584,7 +2590,7 @@ async function initDB() {
             localStorage.setItem(SK, JSON.stringify(db));
             const pr = await fetch(GIST_URL, {
               method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `token ${GITHUB_TOKEN}` },
+              headers: { 'Content-Type': 'application/json', 'Authorization': `token ${getGithubToken()}` },
               body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(db) } } })
             });
             if (!pr.ok) throw new Error(pr.status);
@@ -4258,6 +4264,7 @@ function renderGroceries() {
 //  SETTINGS
 // ══════════════════════════════════════
 function renderSettings() {
+  updateTokenStatus();
   // Google Drive connection status
   const gdText = document.getElementById('gd-status-text');
   const gdBtn  = document.getElementById('gd-connect-btn');
@@ -5522,6 +5529,27 @@ async function undoSettle() {
 }
 
 // ══════════════════════════════════════
+//  GITHUB TOKEN MANAGEMENT
+// ══════════════════════════════════════
+function saveGithubToken() {
+  const t = document.getElementById('gh-token-input').value.trim();
+  if (!t) return;
+  localStorage.setItem(TOKEN_KEY, t);
+  document.getElementById('gh-token-input').value = '';
+  updateTokenStatus();
+  toast('Token saved — syncing now', 'success');
+  pushToCloud();
+}
+
+function updateTokenStatus() {
+  const el = document.getElementById('gh-token-status');
+  if (!el) return;
+  const t = getGithubToken();
+  el.textContent = t ? `Token set: ${t.slice(0,8)}…${t.slice(-4)}` : 'No token set — sync disabled';
+  el.style.color = t ? 'var(--green,#4cb795)' : 'var(--text3)';
+}
+
+// ══════════════════════════════════════
 //  FORCE PUSH
 // ══════════════════════════════════════
 async function forcePushToCloud() {
@@ -5538,7 +5566,7 @@ async function forcePushToCloud() {
     localStorage.setItem(SK, JSON.stringify(db));
     const res = await fetch(GIST_URL, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `token ${GITHUB_TOKEN}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `token ${getGithubToken()}` },
       body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(db) } } })
     });
     if (!res.ok) throw new Error(res.status);
