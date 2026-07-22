@@ -2765,7 +2765,8 @@ function bocBalancesUpTo(cutoffDate) {
   const settledDate = db.opening.bocSettledDate || null;
   for (const t of db.boc) {
     const tDate = t.date||'';
-    if (settledDate && tDate <= settledDate) continue; // pre-settle: already in bocAndrew/bocGloria
+    if (t.settled) continue;                              // explicitly settled by confirmSettle
+    if (settledDate && tDate < settledDate) continue;    // strictly-before fallback (backward compat)
     if (cutoffDate && tDate > cutoffDate) continue;
     const signed = parseFloat(t.amount)||0;
     if (t.category==='Interest') continue; // Interest tracked separately
@@ -5386,9 +5387,10 @@ async function confirmSettle() {
 
   const bocPos = bocBalancesUpTo(date);
 
-  // Count how many non-BOC/grocery transactions will be marked settled
-  const nbocToSettle  = db.nonBoc.filter(t => !t.settled && (t.date||'') <= date);
-  const grocToSettle  = db.groceries.filter(t => !t.settled && (t.date||'') <= date);
+  // Count transactions that will be marked settled
+  const nbocToSettle = db.nonBoc.filter(t => !t.settled && (t.date||'') <= date);
+  const grocToSettle = db.groceries.filter(t => !t.settled && (t.date||'') <= date);
+  const bocToSettle  = db.boc.filter(t => !t.settled && t.category !== 'Interest' && (t.date||'') <= date);
 
   const record = {
     id: uid(), date, andrewBefore: andrew, gloriaBefore: gloria,
@@ -5400,14 +5402,16 @@ async function confirmSettle() {
     newBocAndrew:       bocPos.andrew,
     newBocGloria:       bocPos.gloria,
     // Store IDs of transactions settled in this round so Undo can unmark them
-    settledNbocIds:  nbocToSettle.map(t => t.id),
-    settledGrocIds:  grocToSettle.map(t => t.id),
+    settledNbocIds: nbocToSettle.map(t => t.id),
+    settledGrocIds: grocToSettle.map(t => t.id),
+    settledBocIds:  bocToSettle.map(t => t.id),
     undone: false, undoneDate: null
   };
 
-  // Mark non-BOC and grocery transactions as settled
+  // Mark transactions as settled
   nbocToSettle.forEach(t => { t.settled = true; t.settledDate = date; });
   grocToSettle.forEach(t => { t.settled = true; t.settledDate = date; });
+  bocToSettle.forEach(t  => { t.settled = true; t.settledDate = date; });
 
   // Advance BOC baseline
   db.opening.bocAndrew      = bocPos.andrew;
@@ -5467,8 +5471,10 @@ async function undoSettle() {
   // Unmark the transactions that were settled in this round
   const nbocIds = new Set(last.settledNbocIds || []);
   const grocIds = new Set(last.settledGrocIds || []);
-  db.nonBoc.forEach(t => { if (nbocIds.has(t.id)) { delete t.settled; delete t.settledDate; } });
+  const bocIds  = new Set(last.settledBocIds  || []);
+  db.nonBoc.forEach(t   => { if (nbocIds.has(t.id)) { delete t.settled; delete t.settledDate; } });
   db.groceries.forEach(t => { if (grocIds.has(t.id)) { delete t.settled; delete t.settledDate; } });
+  db.boc.forEach(t       => { if (bocIds.has(t.id))  { delete t.settled; delete t.settledDate; } });
 
   // Restore BOC baseline
   db.opening.bocAndrew      = last.prevBocAndrew      ?? (parseFloat(db.opening.bocAndrew)||0);
@@ -5891,8 +5897,10 @@ function reconcileSettlements() {
   // Re-apply settled flags from all active settlements
   const nbocIds = new Set(active.flatMap(s => s.settledNbocIds||[]));
   const grocIds = new Set(active.flatMap(s => s.settledGrocIds||[]));
-  (db.nonBoc||[]).forEach(t => { if (nbocIds.has(t.id)) { t.settled = true; if (!t.settledDate) t.settledDate = latest.date; } });
+  const bocIds  = new Set(active.flatMap(s => s.settledBocIds ||[]));
+  (db.nonBoc||[]).forEach(t    => { if (nbocIds.has(t.id)) { t.settled = true; if (!t.settledDate) t.settledDate = latest.date; } });
   (db.groceries||[]).forEach(t => { if (grocIds.has(t.id)) { t.settled = true; if (!t.settledDate) t.settledDate = latest.date; } });
+  (db.boc||[]).forEach(t       => { if (bocIds.has(t.id))  { t.settled = true; if (!t.settledDate) t.settledDate = latest.date; } });
 
   console.log('[Settle] Reconciled opening from settlement record:', latest.date);
   return true;
