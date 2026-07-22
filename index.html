@@ -2526,6 +2526,53 @@ function updateSyncTimestamp() {
   _syncTickTimer = setTimeout(updateSyncTimestamp, 30000);
 }
 
+// ── Background cloud poll (pulls other device's changes every 30s) ──
+let _pollTimer = null;
+async function pollCloud() {
+  clearTimeout(_pollTimer);
+  _pollTimer = setTimeout(pollCloud, 30000);
+  if (!getGithubToken()) return;               // no token — skip
+  if (document.hidden) return;                  // tab/app in background — skip
+  try {
+    const res = await fetch(GIST_URL, {
+      headers: { 'Authorization': `token ${getGithubToken()}` }
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    const cloudRec = JSON.parse((json.files[GIST_FILE]||{}).content || '{}');
+    if (!cloudRec._savedAt || cloudRec._savedAt === _cloudBaseVersion) return; // no change
+    // Merge: bring in any IDs from cloud not yet in local
+    let mergedAny = false;
+    for (const key of SYNC_ARRAYS) {
+      if (!Array.isArray(cloudRec[key])) continue;
+      const localIds = new Set((db[key]||[]).map(e=>e.id).filter(Boolean));
+      const incoming = cloudRec[key].filter(e => e.id && !localIds.has(e.id));
+      if (incoming.length) { db[key] = [...incoming, ...(db[key]||[])]; mergedAny = true; }
+    }
+    // Honour a newer settlement from the cloud
+    const cloudSettle = (cloudRec.opening||{}).bocSettledDate||'';
+    const localSettle = (db.opening||{}).bocSettledDate||'';
+    if (cloudSettle > localSettle && cloudRec.opening) {
+      db.opening = { ...db.opening, ...cloudRec.opening };
+      for (const key of ['nonBoc','groceries','boc']) {
+        const cm = new Map((cloudRec[key]||[]).filter(e=>e.id).map(e=>[e.id,e]));
+        (db[key]||[]).forEach(e => { const ce=cm.get(e.id); if(ce&&ce.settled&&!e.settled){e.settled=true;e.settledDate=ce.settledDate||null;} });
+      }
+      mergedAny = true;
+    }
+    if (mergedAny) {
+      _cloudBaseVersion = cloudRec._savedAt;
+      _lastSyncTime = Date.now(); updateSyncTimestamp();
+      localStorage.setItem(SK, JSON.stringify(db));
+      renderAll();
+      toast('Updated from cloud', 'info', 2500);
+    } else {
+      // versions differ but no new IDs — update our base version to avoid re-fetching
+      _cloudBaseVersion = cloudRec._savedAt;
+    }
+  } catch(e) { /* silent — poll will retry in 30s */ }
+}
+
 async function initDB() {
   // 1. Start with local cache so UI is instant
   let local = null;
@@ -6622,6 +6669,7 @@ function sortArrow(section, col) {
   autoCheckMonthlyReport();
   setDashRangeThisMo();
   renderAll();
+  pollCloud(); // start 30s background poll for other device's changes
   const lastTab = localStorage.getItem('pano_tab');
   if (lastTab && TABS.includes(lastTab)) switchTab(lastTab);
   maybeShowNamePrompt();
