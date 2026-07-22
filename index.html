@@ -5381,6 +5381,10 @@ async function confirmSettle() {
     prevBocAndrew:      parseFloat(db.opening.bocAndrew)||0,
     prevBocGloria:      parseFloat(db.opening.bocGloria)||0,
     prevBocSettledDate: db.opening.bocSettledDate || null,
+    // Post-settlement opening values — used by reconcileSettlements() to self-heal
+    // if the cloud was stale when this was loaded back
+    newBocAndrew:       bocPos.andrew,
+    newBocGloria:       bocPos.gloria,
     // Store IDs of transactions settled in this round so Undo can unmark them
     settledNbocIds:  nbocToSettle.map(t => t.id),
     settledGrocIds:  grocToSettle.map(t => t.id),
@@ -5400,7 +5404,15 @@ async function confirmSettle() {
 
   db.settlements.push(record);
   logActivity('settle','Settlement',`Settled as of ${date}: ${summaryLine}`);
-  save(); closeModal(); renderDashboard(); renderNonBOC(); renderGroceries(); renderSettlements();
+
+  // Push immediately — settlement is critical; don't wait for the debounce
+  clearTimeout(_saveTimer); _saveTimer = null;
+  localStorage.setItem(SK, JSON.stringify(db));
+  setSyncDot('pending');
+  _lastSyncTime = Date.now(); updateSyncTimestamp();
+  pushToCloud();
+
+  closeModal(); renderDashboard(); renderNonBOC(); renderGroceries(); renderSettlements();
   toast(`Settled as of ${date}`);
 }
 
@@ -5817,6 +5829,35 @@ async function delTripExpense(expId) {
   db.tripExpenses=(db.tripExpenses||[]).filter(e=>e.id!==expId);
   save(); renderTrips(); renderDashboard();
   toast('Expense deleted', 'info');
+}
+
+// Self-healing: if cloud was stale on load and opening/settled flags
+// don't match the settlement records, rebuild them from the records.
+// Returns true if anything was changed (caller should save/push).
+function reconcileSettlements() {
+  const active = (db.settlements||[])
+    .filter(s => !s.undone)
+    .sort((a, b) => (a.date > b.date ? -1 : 1)); // newest first
+  const latest = active[0];
+  if (!latest) return false;
+  if (db.opening.bocSettledDate === latest.date) return false; // already in sync
+  if (latest.newBocAndrew === undefined) return false; // old record without recovery data
+
+  // Restore post-settlement opening values from the record
+  db.opening.bocAndrew      = latest.newBocAndrew;
+  db.opening.bocGloria      = latest.newBocGloria;
+  db.opening.bocSettledDate = latest.date;
+  db.opening.andrew         = 0;
+  db.opening.gloria         = 0;
+
+  // Re-apply settled flags from all active settlements
+  const nbocIds = new Set(active.flatMap(s => s.settledNbocIds||[]));
+  const grocIds = new Set(active.flatMap(s => s.settledGrocIds||[]));
+  (db.nonBoc||[]).forEach(t => { if (nbocIds.has(t.id)) { t.settled = true; if (!t.settledDate) t.settledDate = latest.date; } });
+  (db.groceries||[]).forEach(t => { if (grocIds.has(t.id)) { t.settled = true; if (!t.settledDate) t.settledDate = latest.date; } });
+
+  console.log('[Settle] Reconciled opening from settlement record:', latest.date);
+  return true;
 }
 
 function applyMigrations() {
@@ -6425,6 +6466,7 @@ function sortArrow(section, col) {
   db = await initDB();
   applyMigrations();
   applyRecurring();
+  if (reconcileSettlements()) save(); // push reconciled state if opening was stale
   autoCheckMonthlyReport();
   setDashRangeThisMo();
   renderAll();
@@ -6676,6 +6718,7 @@ if (window.navigator.standalone || window.matchMedia('(display-mode:standalone)'
       try {
         db = await initDB();
         applyMigrations();
+        if (reconcileSettlements()) save();
         renderAll();
       } catch(err) { console.warn('[PTR] refresh failed', err); }
       refreshing = false;
