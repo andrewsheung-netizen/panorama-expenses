@@ -6,7 +6,7 @@
  *   - EmailJS CDN                         → Cache-first (rarely changes)
  */
 
-const CACHE_VERSION = 'panorama-v40';
+const CACHE_VERSION = 'panorama-v42';
 
 const APP_SHELL = [
   './',
@@ -59,8 +59,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // GitHub Gist API — let browser handle directly (SW must not intercept cross-origin auth requests)
-  if (url.hostname === 'api.github.com') {
+  // Firebase — let browser handle directly
+  if (url.hostname.includes('firebasedatabase.app')) {
     return;
   }
 
