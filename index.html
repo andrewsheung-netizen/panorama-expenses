@@ -5523,10 +5523,10 @@ async function confirmSettle() {
     db._savedAt = new Date().toISOString();
     _cloudBaseVersion = db._savedAt;
     localStorage.setItem(SK, JSON.stringify(db));
-    const pr = await fetch(BIN_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-      body: JSON.stringify(db)
+    const pr = await fetch(GIST_URL, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `token ${getGithubToken()}` },
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(db) } } })
     });
     cloudOk = pr.ok;
     setSyncDot(cloudOk ? 'saved' : 'error');
