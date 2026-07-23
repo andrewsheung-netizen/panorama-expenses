@@ -2421,6 +2421,11 @@ async function pushToCloud() {
         }
         for (const key of SYNC_ARRAYS) {
           if (!Array.isArray(cloudRec[key])) continue;
+          // Remove any local entries that were deleted (on this or another device)
+          const before = (db[key]||[]).length;
+          db[key] = (db[key]||[]).filter(e => !e.id || !allDeletedIds.has(e.id));
+          if (db[key].length < before) mergedAny = true;
+          // Add entries from cloud not yet local (and not deleted)
           const localIds = new Set((db[key] || []).map(e => e.id).filter(Boolean));
           const incoming = cloudRec[key].filter(e => e.id && !localIds.has(e.id) && !allDeletedIds.has(e.id));
           if (incoming.length) {
@@ -2630,6 +2635,19 @@ async function initDB() {
           if (localSettle > cloudSettle && local.opening) {
             rec.opening = { ...rec.opening, ...local.opening };
             mergedAny = true;
+          }
+          // Merge cats: union of local + cloud so categories are never lost
+          // (cloud may have been pushed by a device with fewer categories)
+          if (local.cats) {
+            if (!rec.cats) rec.cats = {};
+            for (const type of Object.keys(local.cats)) {
+              const cloudSet = new Set(rec.cats[type] || []);
+              const merged = [...(rec.cats[type] || [])];
+              for (const cat of (local.cats[type] || [])) {
+                if (!cloudSet.has(cat)) { merged.push(cat); mergedAny = true; }
+              }
+              rec.cats[type] = merged;
+            }
           }
         }
         db = rec;
