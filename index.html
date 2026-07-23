@@ -2308,7 +2308,7 @@ const SK = 'pano_v3';
 
 const D_BOC  = ['Opening Balance','Deposit','Mortgage','Management Fee','Interest','Fire Insurance','Parking','SKH','VEO','VPP','Transfer In','Transfer Out','Withdrawal','Misc.'];
 const D_NBOC = ['Home','Helper','SKH','VEO','VPP','Alex','Canossa','Shichida','Lai See','Misc.'];
-const D_GROC = ['Groceries & Food','Helper'];
+const D_GROC = ['Groceries & Food','Helper','Cashback'];
 
 // Default subcategory tree: { type: { L1: { L2: [L3, ...] } } }
 const D_SUBCATS = {
@@ -2355,14 +2355,17 @@ const D_SUBCATS = {
       'Groceries & Supplies':       [],
       'Groceries & Supplies (Mox)': [],
       'Meat':                       [],
-      'Online': ['HKTVMall','iHerb'],
-      'Mercy Other':                [],
-      'Parking Ticket':             [],
       'Cashback':                   [],
-      'Other':                      []
+      'Other':                      [],
+      'iHerb':                      [],
+      'HKTVMALL':                   []
     },
     'Helper': {
       'Food': []
+    },
+    'Online': {
+      'HKTVMall': [],
+      'iHerb':    []
     }
   }
 };
