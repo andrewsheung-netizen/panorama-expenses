@@ -2633,11 +2633,40 @@ async function initDB() {
         }
         db = rec;
         _cloudBaseVersion = rec._savedAt || null;
-        // Enforce default grocery categories — never let them be wiped
+        // Enforce default cats — never let them be wiped
         if (!db.cats) db.cats = {};
         for (const [type, defs] of [['boc',D_BOC],['nonboc',D_NBOC],['grocery',D_GROC]]) {
           const s = new Set(db.cats[type]||[]);
           for (const cat of defs) { if (!s.has(cat)) { (db.cats[type]=db.cats[type]||[]).push(cat); } }
+        }
+        // Merge subcats from local into cloud — subcats are never wiped by a stale push
+        if (local?.subcats) {
+          if (!db.subcats) db.subcats = {};
+          for (const type of Object.keys(local.subcats)) {
+            if (!db.subcats[type]) db.subcats[type] = {};
+            for (const cat of Object.keys(local.subcats[type]||{})) {
+              if (!db.subcats[type][cat]) {
+                db.subcats[type][cat] = local.subcats[type][cat];
+              } else {
+                for (const sub of Object.keys(local.subcats[type][cat]||{})) {
+                  if (!(sub in db.subcats[type][cat])) {
+                    db.subcats[type][cat][sub] = local.subcats[type][cat][sub];
+                  }
+                }
+              }
+            }
+          }
+        }
+        // Enforce default subcats from D_SUBCATS
+        if (!db.subcats) db.subcats = {};
+        for (const type of Object.keys(D_SUBCATS)) {
+          if (!db.subcats[type]) db.subcats[type] = {};
+          for (const cat of Object.keys(D_SUBCATS[type])) {
+            if (!db.subcats[type][cat]) db.subcats[type][cat] = {};
+            for (const sub of Object.keys(D_SUBCATS[type][cat])) {
+              if (!(sub in db.subcats[type][cat])) db.subcats[type][cat][sub] = D_SUBCATS[type][cat][sub];
+            }
+          }
         }
         localStorage.setItem(SK, JSON.stringify(db));
         // Only push if we rescued genuinely new local entries
