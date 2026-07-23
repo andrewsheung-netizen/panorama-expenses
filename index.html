@@ -2540,23 +2540,22 @@ async function pollCloud() {
     if (!res.ok) return;
     const cloudRec = (await res.json()) || {};
     if (!cloudRec._savedAt || cloudRec._savedAt === _cloudBaseVersion) return; // no change
-    // Merge tombstones first — deletions propagate both ways
+    // Merge tombstones
     let mergedAny = false;
     const allDeletedIds = new Set([...(db._deletedIds||[]), ...(cloudRec._deletedIds||[])]);
-    if (allDeletedIds.size > (db._deletedIds||[]).length) {
-      db._deletedIds = [...allDeletedIds];
-      mergedAny = true;
-    }
+    if (allDeletedIds.size > (db._deletedIds||[]).length) { db._deletedIds = [...allDeletedIds]; mergedAny = true; }
     for (const key of SYNC_ARRAYS) {
       if (!Array.isArray(cloudRec[key])) continue;
-      // Remove entries deleted on another device
-      const beforeLen = (db[key]||[]).length;
-      db[key] = (db[key]||[]).filter(e => !e.id || !allDeletedIds.has(e.id));
-      if (db[key].length < beforeLen) mergedAny = true;
-      // Add entries from cloud not yet local (and not deleted)
-      const localIds = new Set((db[key]||[]).map(e=>e.id).filter(Boolean));
-      const incoming = cloudRec[key].filter(e => e.id && !localIds.has(e.id) && !allDeletedIds.has(e.id));
-      if (incoming.length) { db[key] = [...incoming, ...(db[key]||[])]; mergedAny = true; }
+      // Cloud is authoritative: replace local array with cloud array (applies deletions automatically)
+      // Then add any local entries created AFTER the cloud's _savedAt (unsynced local additions)
+      const cloudArr = cloudRec[key].filter(e => !e.id || !allDeletedIds.has(e.id));
+      const cloudIds = new Set(cloudArr.filter(e=>e.id).map(e=>e.id));
+      const localNew = (db[key]||[]).filter(e =>
+        e.id && !cloudIds.has(e.id) && !allDeletedIds.has(e.id) &&
+        e.createdAt && e.createdAt > (cloudRec._savedAt||'')
+      );
+      const merged = localNew.length ? [...localNew, ...cloudArr] : cloudArr;
+      if (JSON.stringify(merged) !== JSON.stringify(db[key]||[])) { db[key] = merged; mergedAny = true; }
     }
     // Honour a newer settlement from the cloud
     const cloudSettle = (cloudRec.opening||{}).bocSettledDate||'';
@@ -2596,74 +2595,58 @@ async function initDB() {
       const rec = (await res.json()) || {};
       // Use cloud data only if it looks like real app data (has opening or boc key)
       if (rec && (rec.opening || rec.boc)) {
-        // Rescue local-only entries not yet in cloud (saved within the debounce window
-        // before a refresh, or if the last cloud push failed silently)
+        // Always merge tombstones so deletions are respected on this device
+        const allDeletedIds = new Set([...(local?._deletedIds||[]), ...(rec._deletedIds||[])]);
+        rec._deletedIds = [...allDeletedIds];
+        // Apply tombstones to cloud data
+        for (const key of SYNC_ARRAYS) {
+          rec[key] = (rec[key]||[]).filter(e => !e.id || !allDeletedIds.has(e.id));
+        }
+        // Rescue ONLY local entries created AFTER the last cloud save
+        // (prevents stale/deleted entries from a device with old localStorage from corrupting cloud)
         let mergedAny = false;
-        if (local) {
-          // Merge tombstones from both sides
-          const allDeletedIds = new Set([...(local._deletedIds||[]), ...(rec._deletedIds||[])]);
-          rec._deletedIds = [...allDeletedIds];
+        if (local && rec._savedAt) {
           for (const key of SYNC_ARRAYS) {
             if (!Array.isArray(local[key])) continue;
-            // Remove entries deleted anywhere
-            rec[key] = (rec[key]||[]).filter(e => !e.id || !allDeletedIds.has(e.id));
             const cloudIds = new Set((rec[key]||[]).map(e=>e.id).filter(Boolean));
-            const localOnly = local[key].filter(e => e.id && !cloudIds.has(e.id) && !allDeletedIds.has(e.id));
-            if (localOnly.length) {
-              rec[key] = [...localOnly, ...(rec[key]||[])];
-              mergedAny = true;
-            }
+            const localOnly = local[key].filter(e =>
+              e.id &&
+              !cloudIds.has(e.id) &&
+              !allDeletedIds.has(e.id) &&
+              e.createdAt && e.createdAt > rec._savedAt   // only truly new entries
+            );
+            if (localOnly.length) { rec[key] = [...localOnly, ...(rec[key]||[])]; mergedAny = true; }
           }
-          // Restore settled=true from local for entries already in cloud
-          // (prevents another device's stale push from un-settling entries)
+          // Preserve settled flags from local
           for (const key of ['nonBoc', 'groceries', 'boc']) {
             if (!Array.isArray(local[key])) continue;
             const localMap = new Map(local[key].filter(e=>e.id).map(e=>[e.id,e]));
             for (const entry of (rec[key]||[])) {
               const lc = localMap.get(entry.id);
-              if (lc && lc.settled && !entry.settled) {
-                entry.settled = true;
-                entry.settledDate = lc.settledDate || null;
-                mergedAny = true;
-              }
+              if (lc && lc.settled && !entry.settled) { entry.settled = true; entry.settledDate = lc.settledDate||null; mergedAny = true; }
             }
           }
-          // If local has a more recent settlement than cloud, preserve local's opening values
-          // (handles case where local settled but cloud still has the pre-settlement state)
+          // Preserve local settlement if newer than cloud
           const localSettle = (local.opening||{}).bocSettledDate||'';
           const cloudSettle = (rec.opening||{}).bocSettledDate||'';
-          if (localSettle > cloudSettle && local.opening) {
-            rec.opening = { ...rec.opening, ...local.opening };
-            mergedAny = true;
-          }
-          // Merge cats: union of local + cloud so categories are never lost
-          // (cloud may have been pushed by a device with fewer categories)
-          if (local.cats) {
-            if (!rec.cats) rec.cats = {};
-            for (const type of Object.keys(local.cats)) {
-              const cloudSet = new Set(rec.cats[type] || []);
-              const merged = [...(rec.cats[type] || [])];
-              for (const cat of (local.cats[type] || [])) {
-                if (!cloudSet.has(cat)) { merged.push(cat); mergedAny = true; }
-              }
-              rec.cats[type] = merged;
-            }
-          }
+          if (localSettle > cloudSettle && local.opening) { rec.opening = { ...rec.opening, ...local.opening }; mergedAny = true; }
         }
         db = rec;
         _cloudBaseVersion = rec._savedAt || null;
+        // Enforce default grocery categories — never let them be wiped
+        if (!db.cats) db.cats = {};
+        for (const [type, defs] of [['boc',D_BOC],['nonboc',D_NBOC],['grocery',D_GROC]]) {
+          const s = new Set(db.cats[type]||[]);
+          for (const cat of defs) { if (!s.has(cat)) { (db.cats[type]=db.cats[type]||[]).push(cat); } }
+        }
         localStorage.setItem(SK, JSON.stringify(db));
-        // Immediately push merged entries so other devices (and future reloads) see them
+        // Only push if we rescued genuinely new local entries
         if (mergedAny) {
           try {
             db._savedAt = new Date().toISOString();
             _cloudBaseVersion = db._savedAt;
             localStorage.setItem(SK, JSON.stringify(db));
-            const pr = await fetch(FIREBASE_URL, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(db)
-            });
+            const pr = await fetch(FIREBASE_URL, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(db) });
             if (!pr.ok) throw new Error(pr.status);
           } catch(me) { console.warn('[Sync] Could not push rescued entries to cloud:', me); }
         }
