@@ -5363,6 +5363,8 @@ async function saveEntry() {
     if (cat === 'Interest' || cat === 'Deposit') amount =  absAmt;
     else if (cat === 'Withdrawal')               amount = -absAmt;
     else                                         amount = -absAmt;
+  } else if (mtype === 'grocery' && cat === 'Cashback') {
+    amount = Math.abs(rawAmt); // positive — cashback is a refund to the selected user
   } else {
     amount = -Math.abs(rawAmt);
   }
