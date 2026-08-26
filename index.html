@@ -5760,6 +5760,7 @@ function calcTripPositions(tripId, cutoffDate) {
   let gloria = parseFloat(trip.openingGloria)||0;
   for (const e of (db.tripExpenses||[]).filter(e=>e.tripId===tripId)) {
     if (cutoffDate && (e.date||'') > cutoffDate) continue;
+    if (e.settled) continue;
     const abs = Math.abs(parseFloat(e.amount)||0);
     if (e.paidBy==='andrew')      { andrew+=abs/2; gloria-=abs/2; }
     else if (e.paidBy==='gloria') { gloria+=abs/2; andrew-=abs/2; }
