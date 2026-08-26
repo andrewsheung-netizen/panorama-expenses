@@ -2949,16 +2949,27 @@ function calcPositions(cutoffDate) {
   else if (nbocG > nbocA) gloria += (nbocG - nbocA) / 2;
 
   // 3. Groceries — same one-sided tally, unsettled only
+  // Cashback is excluded from the half-split and applied as a full direct credit
   let grocA = 0, grocG = 0;
   for (const t of db.groceries) {
     if (t.settled) continue;
     if (cutoffDate && (t.date||'') > cutoffDate) continue;
+    if (t.category === 'Cashback') continue; // handled separately below
     const amt = Math.abs(parseFloat(t.amount)||0);
     if      (t.paidBy === 'andrew') grocA += amt;
     else if (t.paidBy === 'gloria') grocG += amt;
   }
   if      (grocA > grocG) andrew += (grocA - grocG) / 2;
   else if (grocG > grocA) gloria += (grocG - grocA) / 2;
+  // Cashback: full refund to the selected person (reduces their position by full amount)
+  for (const t of db.groceries) {
+    if (t.settled) continue;
+    if (cutoffDate && (t.date||'') > cutoffDate) continue;
+    if (t.category !== 'Cashback') continue;
+    const amt = Math.abs(parseFloat(t.amount)||0);
+    if      (t.paidBy === 'andrew') andrew -= amt;
+    else if (t.paidBy === 'gloria') gloria -= amt;
+  }
 
   return { andrew, gloria };
 }
@@ -4329,15 +4340,21 @@ function renderGroceries() {
 
 
   const grocUnsettled = filtered.filter(t=>!t.settled);
-  const byA  = grocUnsettled.filter(t=>t.paidBy==='andrew').reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
-  const byG  = grocUnsettled.filter(t=>t.paidBy==='gloria').reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
-  const tot  = grocUnsettled.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const grocExp = grocUnsettled.filter(t=>t.category!=='Cashback');
+  const grocCashback = grocUnsettled.filter(t=>t.category==='Cashback');
+  const byA  = grocExp.filter(t=>t.paidBy==='andrew').reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const byG  = grocExp.filter(t=>t.paidBy==='gloria').reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const grossTot = grocExp.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const cbTot = grocCashback.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const netTot = grossTot - cbTot;
   const grocSettledCount = filtered.filter(t=>t.settled).length;
   document.getElementById('groc-summary').innerHTML = sBar([
     {l:'Shown',              v:filtered.length+' of '+db.groceries.length},
     {l:'Andrew (unsettled)', v:'HKD '+fmtN(byA,false), c:'#a8381a'},
     {l:'Gloria (unsettled)', v:'HKD '+fmtN(byG,false), c:'#8a6312'},
-    {l:'Unsettled Total',    v:'HKD '+fmtN(tot,false)},
+    {l:'Gross Spend',        v:'HKD '+fmtN(grossTot,false)},
+    ...(cbTot ? [{l:'Cashback', v:'− HKD '+fmtN(cbTot,false), c:'#4cb795'}] : []),
+    ...(cbTot ? [{l:'Net Spend', v:'HKD '+fmtN(netTot,false)}] : []),
     ...(grocSettledCount ? [{l:'Settled', v:grocSettledCount+' entries', c:'#2f7d6e'}] : []),
   ]);
   renderGrocPie(); // keep pie in sync with table filters
