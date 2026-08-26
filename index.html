@@ -2877,6 +2877,9 @@ function populateCatFilter(prefix, data) {
 // Categories that belong entirely to the payer — not shared 50/50
 const DIRECT_CATS = new Set(['Deposit','Withdrawal']);
 
+// Months excluded from average calculations (partial months at app launch)
+const AVG_SKIP_MONTHS = new Set(['2026-05']);
+
 // Core BOC position calculator — used by both the BOC tab cards and the dashboard.
 // cutoffDate: if set, only processes transactions on or before that date.
 // Returns { andrew, gloria } (net positions), plus interest and acct if needed.
@@ -3018,7 +3021,7 @@ function avgMonthlyCat() {
     const mo=(t.date||'').slice(0,7); if(!mo) continue;
     const k = dashL1Key(t);
     byKey[k+'|'+mo] = (byKey[k+'|'+mo]||0)+expAmt(t);
-    months.add(mo); cats.add(k);
+    if (!AVG_SKIP_MONTHS.has(mo)) months.add(mo); cats.add(k);
   }
   const mc = months.size||1;
   return [...cats].map(c=>({cat:c, avg:[...months].reduce((s,m)=>s+(byKey[c+'|'+m]||0),0)/mc}))
@@ -3084,7 +3087,7 @@ function topCatInsights(){
   const moTotal=sorted.reduce((s,[,v])=>s+v,0);
   // Historical avg per cat
   const byKey={}, months=new Set();
-  for(const t of ex){ const tmo=(t.date||'').slice(0,7); if(!tmo) continue; months.add(tmo); byKey[t.category+'|'+tmo]=(byKey[t.category+'|'+tmo]||0)+expAmt(t); }
+  for(const t of ex){ const tmo=(t.date||'').slice(0,7); if(!tmo) continue; if(!AVG_SKIP_MONTHS.has(tmo)) months.add(tmo); byKey[t.category+'|'+tmo]=(byKey[t.category+'|'+tmo]||0)+expAmt(t); }
   const mc=months.size||1;
   const catAvg=c=>[...months].reduce((s,m)=>s+(byKey[c+'|'+m]||0),0)/mc;
   // Abnormal: this month > 1.5× avg (only flag if avg > 50 to avoid noise)
@@ -3232,7 +3235,7 @@ function helperFoodData() {
   const byMo = {}; months.forEach(m=>byMo[m]=0);
   helpers.forEach(t=>{ const m=(t.date||'').slice(0,7); if(byMo[m]!==undefined) byMo[m]+=expAmt(t); });
   const thisMoTotal = byMo[mo]||0;
-  const past = months.filter(m=>m!==mo);
+  const past = months.filter(m=>m!==mo && !AVG_SKIP_MONTHS.has(m));
   const avg = past.length ? past.reduce((s,m)=>s+byMo[m],0)/past.length : 0;
   return { months, byMo, thisMoTotal, avg };
 }
@@ -3362,7 +3365,7 @@ function avgMoPieDataL1() {
     const mo=(t.date||'').slice(0,7); if(!mo) continue;
     const k = dashL1Key(t);
     byKey[k+'||'+mo] = (byKey[k+'||'+mo]||0) + expAmt(t);
-    months.add(mo);
+    if (!AVG_SKIP_MONTHS.has(mo)) months.add(mo);
   }
   const mc = months.size||1;
   const keys = new Set(Object.keys(byKey).map(k=>k.split('||')[0]));
@@ -3393,7 +3396,7 @@ function avgMoPieData() {
     const mo=(t.date||'').slice(0,7); if(!mo) continue;
     const k = dashPieKey2(t);
     byKey[k+'||'+mo] = (byKey[k+'||'+mo]||0) + expAmt(t);
-    months.add(mo);
+    if (!AVG_SKIP_MONTHS.has(mo)) months.add(mo);
   }
   const mc = months.size||1;
   const keys = new Set(Object.keys(byKey).map(k=>k.split('||')[0]));
@@ -3424,7 +3427,7 @@ function avgMonthlyLevel3Data() {
     const mo=(t.date||'').slice(0,7); if(!mo) continue;
     const k = dashPieKey3(t);
     byKey[k+'||'+mo] = (byKey[k+'||'+mo]||0) + expAmt(t);
-    months.add(mo);
+    if (!AVG_SKIP_MONTHS.has(mo)) months.add(mo);
   }
   const mc = months.size||1;
   const keys = new Set(Object.keys(byKey).map(k=>k.split('||')[0]));
@@ -6363,7 +6366,7 @@ function buildMonthlyEmailHtml(month) {
   // Abnormal spending vs historical avg
   const allEx=allExpenses();
   const byKey={},months=new Set();
-  for(const t of allEx){ const m=(t.date||'').slice(0,7); if(!m||m===month) continue; months.add(m); const k=dashL1Key(t); byKey[k+'|'+m]=(byKey[k+'|'+m]||0)+expAmt(t); }
+  for(const t of allEx){ const m=(t.date||'').slice(0,7); if(!m||m===month||AVG_SKIP_MONTHS.has(m)) continue; months.add(m); const k=dashL1Key(t); byKey[k+'|'+m]=(byKey[k+'|'+m]||0)+expAmt(t); }
   const mc=months.size||1;
   const catAvg=c=>[...months].reduce((s,m2)=>s+(byKey[c+'|'+m2]||0),0)/mc;
   const abnormal=sorted.filter(([cat,amt])=>{ const avg=catAvg(cat); return avg>50&&amt>avg*1.5; })
