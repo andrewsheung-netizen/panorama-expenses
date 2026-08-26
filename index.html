@@ -5792,7 +5792,7 @@ function renderTrips() {
         <td>${e.category||'—'}</td>
         <td class="num ${aC(e.amount)}">${fmtN(parseFloat(e.amount))}</td>
         <td>${pb(e.paidBy)}</td>
-        <td><button class="del-btn" onclick="delTripExpense('${e.id}','${trip.id}')">✕</button></td>
+        <td><div class="row-actions"><button class="edit-btn" aria-label="Edit expense" onclick="editTripExpense('${e.id}','${trip.id}')">✎</button><button class="del-btn" aria-label="Delete expense" onclick="delTripExpense('${e.id}')">✕</button></div></td>
       </tr>`).join('') :
       `<tr><td colspan="6"><div class="empty" style="padding:20px"><p>No expenses yet.</p></div></td></tr>`;
 
@@ -6021,6 +6021,48 @@ function saveTripExpense(tripId) {
   db.tripExpenses.push({id:uid(), tripId, date, description:desc, category:cat, amount, paidBy, notes});
   save(); closeModal(); renderTrips(); renderDashboard();
   toast('Expense added');
+}
+
+function editTripExpense(expId, tripId) {
+  const exp = (db.tripExpenses||[]).find(e=>e.id===expId);
+  const trip = (db.trips||[]).find(t=>t.id===tripId);
+  if (!exp || !trip) return;
+  const cats = trip.cats||['Accommodation','Food & Drink','Transport','Activities','Shopping','Other'];
+  document.getElementById('modal-body').innerHTML = `
+    <h3>Edit Expense — ${trip.name}</h3>
+    <div class="fg2">
+      <div class="form-row"><label>Date</label><input type="date" id="te-date" value="${exp.date||''}"></div>
+      <div class="form-row"><label>Amount (HKD, −ve = expense)</label><input type="number" id="te-amount" step="0.01" value="${exp.amount}"></div>
+    </div>
+    <div class="form-row"><label>Description</label><input type="text" id="te-desc" value="${exp.description||''}"></div>
+    <div class="form-row"><label>Category</label><select id="te-cat">${cats.map(c=>`<option value="${c}"${c===exp.category?' selected':''}>${c}</option>`).join('')}</select></div>
+    ${paidHtml()}
+    <div class="form-row"><label>Notes (optional)</label><input type="text" id="te-notes" value="${exp.notes||''}"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveEditTripExpense('${expId}','${tripId}')">Save</button>
+    </div>`;
+  openModalOverlay();
+  const pb = document.querySelector(`#ptgl .pt-btn[data-v="${exp.paidBy||'andrew'}"]`);
+  if (pb) setPaid(pb);
+}
+
+function saveEditTripExpense(expId, tripId) {
+  const date   = document.getElementById('te-date')?.value;
+  const amount = parseFloat(document.getElementById('te-amount')?.value);
+  const desc   = document.getElementById('te-desc')?.value.trim()||'';
+  const cat    = document.getElementById('te-cat')?.value||'Other';
+  const notes  = document.getElementById('te-notes')?.value.trim()||'';
+  const paidBy = getPaid();
+  if (!validateFields([
+    {id:'te-date',   ok:v=>!!v,                                    msg:'Pick a date'},
+    {id:'te-amount', ok:v=>v.trim()!=='' && !isNaN(parseFloat(v)), msg:'Enter an amount'},
+  ])) return;
+  const exp = (db.tripExpenses||[]).find(e=>e.id===expId);
+  if (!exp) return;
+  exp.date=date; exp.description=desc; exp.category=cat; exp.amount=amount; exp.paidBy=paidBy; exp.notes=notes;
+  save(); closeModal(); renderTrips(); renderDashboard();
+  toast('Expense updated');
 }
 
 async function delTripExpense(expId) {
