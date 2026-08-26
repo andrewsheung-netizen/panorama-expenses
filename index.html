@@ -2948,28 +2948,24 @@ function calcPositions(cutoffDate) {
   if      (nbocA > nbocG) andrew += (nbocA - nbocG) / 2;
   else if (nbocG > nbocA) gloria += (nbocG - nbocA) / 2;
 
-  // 3. Groceries — same one-sided tally, unsettled only
-  // Cashback is excluded from the half-split and applied as a full direct credit
+  // 3. Groceries — one-sided tally, unsettled only
+  // Cashback reduces net payer contribution then half-split applies normally:
+  //   Andrew cashback → reduces grocA (he got money back)
+  //   Gloria cashback → increases grocG (credited to her side)
   let grocA = 0, grocG = 0;
   for (const t of db.groceries) {
     if (t.settled) continue;
     if (cutoffDate && (t.date||'') > cutoffDate) continue;
-    if (t.category === 'Cashback' || t.subcategory === 'Cashback') continue; // handled separately below
+    const isCashback = t.category === 'Cashback' || t.subcategory === 'Cashback';
     const amt = Math.abs(parseFloat(t.amount)||0);
-    if      (t.paidBy === 'andrew') grocA += amt;
-    else if (t.paidBy === 'gloria') grocG += amt;
+    if (t.paidBy === 'andrew') {
+      if (isCashback) grocA -= amt; else grocA += amt;
+    } else if (t.paidBy === 'gloria') {
+      grocG += amt; // cashback and payment both credit Gloria's side
+    }
   }
   if      (grocA > grocG) andrew += (grocA - grocG) / 2;
   else if (grocG > grocA) gloria += (grocG - grocA) / 2;
-  // Cashback: full refund to the selected person (reduces their position by full amount)
-  for (const t of db.groceries) {
-    if (t.settled) continue;
-    if (cutoffDate && (t.date||'') > cutoffDate) continue;
-    if (t.category !== 'Cashback' && t.subcategory !== 'Cashback') continue;
-    const amt = Math.abs(parseFloat(t.amount)||0);
-    if      (t.paidBy === 'andrew') andrew -= amt;
-    else if (t.paidBy === 'gloria') gloria += amt;
-  }
 
   return { andrew, gloria };
 }
@@ -4351,7 +4347,7 @@ function renderGroceries() {
   const byA  = grocExp.filter(t=>t.paidBy==='andrew').reduce((s,t)=>s+expAmt(t),0);
   const byG  = grocExp.filter(t=>t.paidBy==='gloria').reduce((s,t)=>s+expAmt(t),0);
   const grossTot = grocExp.reduce((s,t)=>s+expAmt(t),0);
-  const cbTot = grocCashback.reduce((s,t)=>s+expAmt(t),0);
+  const cbTot = grocCashback.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
   const netTot = grossTot - cbTot;
   const grocSettledCount = filtered.filter(t=>t.settled).length;
   document.getElementById('groc-summary').innerHTML = sBar([
@@ -6501,10 +6497,10 @@ function prevMonthKey() {
 function sendReportManual()    { sendMonthlyReport(prevMonthKey()); }
 function sendReportThisMonth() { sendMonthlyReport(thisMo()); }
 async function autoCheckMonthlyReport() {
-  // On the 1st of each month, auto-send the previous month's complete report
-  if (new Date().getDate() !== 1) return;
-  const prev=prevMonthKey();
-  if ((db.emailConfig?.lastSentMonth||'') === prev) return;
+  // Auto-send previous month's report on first open of the new month
+  // (sends any time during the new month if not already sent — not just on the 1st)
+  const prev = prevMonthKey();
+  if ((db.emailConfig?.lastSentMonth||'') === prev) return; // already sent this cycle
   await sendMonthlyReport(prev, true); // silent — no UI status
 }
 
