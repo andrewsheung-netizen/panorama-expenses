@@ -2951,7 +2951,7 @@ function calcPositions(cutoffDate) {
   // 3. Groceries — one-sided tally, unsettled only
   // Cashback reduces net payer contribution then half-split applies normally:
   //   Andrew cashback → reduces grocA (he got money back)
-  //   Gloria cashback → increases grocG (credited to her side)
+  //   Gloria cashback → reduces grocG (she got money back)
   let grocA = 0, grocG = 0;
   for (const t of db.groceries) {
     if (t.settled) continue;
@@ -2961,7 +2961,7 @@ function calcPositions(cutoffDate) {
     if (t.paidBy === 'andrew') {
       if (isCashback) grocA -= amt; else grocA += amt;
     } else if (t.paidBy === 'gloria') {
-      grocG += amt; // cashback and payment both credit Gloria's side
+      if (isCashback) grocG -= amt; else grocG += amt;
     }
   }
   if      (grocA > grocG) andrew += (grocA - grocG) / 2;
@@ -4344,8 +4344,10 @@ function renderGroceries() {
   const grocUnsettled = filtered.filter(t=>!t.settled);
   const grocExp = grocUnsettled.filter(t=>t.category!=='Cashback' && t.subcategory!=='Cashback');
   const grocCashback = grocUnsettled.filter(t=>t.category==='Cashback' || t.subcategory==='Cashback');
-  const byA  = grocExp.filter(t=>t.paidBy==='andrew').reduce((s,t)=>s+expAmt(t),0);
-  const byG  = grocExp.filter(t=>t.paidBy==='gloria').reduce((s,t)=>s+expAmt(t),0);
+  const cbA  = grocCashback.filter(t=>t.paidBy==='andrew').reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const cbG  = grocCashback.filter(t=>t.paidBy==='gloria').reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const byA  = grocExp.filter(t=>t.paidBy==='andrew').reduce((s,t)=>s+expAmt(t),0) - cbA;
+  const byG  = grocExp.filter(t=>t.paidBy==='gloria').reduce((s,t)=>s+expAmt(t),0) - cbG;
   const grossTot = grocExp.reduce((s,t)=>s+expAmt(t),0);
   const cbTot = grocCashback.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
   const netTot = grossTot - cbTot;
