@@ -2968,7 +2968,7 @@ function calcPositions(cutoffDate) {
     if (t.category !== 'Cashback') continue;
     const amt = Math.abs(parseFloat(t.amount)||0);
     if      (t.paidBy === 'andrew') andrew -= amt;
-    else if (t.paidBy === 'gloria') gloria -= amt;
+    else if (t.paidBy === 'gloria') gloria += amt;
   }
 
   return { andrew, gloria };
@@ -2996,7 +2996,7 @@ function allExpenses() {
     ...db.nonBoc.map(t=>({...t, _src:'nonboc'})),
     ...db.groceries.map(t=>({...t, _src:'grocery'})),
     ...(db.tripExpenses||[]).map(t=>({...t, _src:'trip'})),
-  ].filter(t => parseFloat(t.amount)<0 && t.category!=='Interest' && !DIRECT_CATS.has(t.category));
+  ].filter(t => parseFloat(t.amount)<0 && t.category!=='Interest' && t.category!=='Cashback' && !DIRECT_CATS.has(t.category));
 }
 
 // ── L1 key: groups all non-helper groceries under one top-level label ──────
