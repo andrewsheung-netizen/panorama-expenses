@@ -2308,7 +2308,7 @@ const SK = 'pano_v3';
 
 const D_BOC  = ['Opening Balance','Deposit','Mortgage','Management Fee','Interest','Fire Insurance','Parking','SKH','VEO','VPP','Transfer In','Transfer Out','Withdrawal','Misc.'];
 const D_NBOC = ['Home','Helper','SKH','VEO','VPP','Alex','Canossa','Shichida','Lai See','Misc.'];
-const D_GROC = ['Groceries & Food','Helper','Cashback'];
+const D_GROC = ['Groceries & Food','Helper'];
 
 // Default subcategory tree: { type: { L1: { L2: [L3, ...] } } }
 const D_SUBCATS = {
@@ -2941,7 +2941,7 @@ function calcPositions(cutoffDate) {
   for (const t of db.nonBoc) {
     if (t.settled) continue;
     if (cutoffDate && (t.date||'') > cutoffDate) continue;
-    const amt = Math.abs(parseFloat(t.amount)||0);
+    const amt = expAmt(t);
     if      (t.paidBy === 'andrew') nbocA += amt;
     else if (t.paidBy === 'gloria') nbocG += amt;
   }
@@ -2954,7 +2954,7 @@ function calcPositions(cutoffDate) {
   for (const t of db.groceries) {
     if (t.settled) continue;
     if (cutoffDate && (t.date||'') > cutoffDate) continue;
-    if (t.category === 'Cashback') continue; // handled separately below
+    if (t.category === 'Cashback' || t.subcategory === 'Cashback') continue; // handled separately below
     const amt = Math.abs(parseFloat(t.amount)||0);
     if      (t.paidBy === 'andrew') grocA += amt;
     else if (t.paidBy === 'gloria') grocG += amt;
@@ -2965,7 +2965,7 @@ function calcPositions(cutoffDate) {
   for (const t of db.groceries) {
     if (t.settled) continue;
     if (cutoffDate && (t.date||'') > cutoffDate) continue;
-    if (t.category !== 'Cashback') continue;
+    if (t.category !== 'Cashback' && t.subcategory !== 'Cashback') continue;
     const amt = Math.abs(parseFloat(t.amount)||0);
     if      (t.paidBy === 'andrew') andrew -= amt;
     else if (t.paidBy === 'gloria') gloria += amt;
@@ -2996,7 +2996,13 @@ function allExpenses() {
     ...db.nonBoc.map(t=>({...t, _src:'nonboc'})),
     ...db.groceries.map(t=>({...t, _src:'grocery'})),
     ...(db.tripExpenses||[]).map(t=>({...t, _src:'trip'})),
-  ].filter(t => parseFloat(t.amount)<0 && t.category!=='Interest' && t.category!=='Cashback' && !DIRECT_CATS.has(t.category));
+  ].filter(t => parseFloat(t.amount)<0 && t.category!=='Interest' && !DIRECT_CATS.has(t.category));
+}
+
+// Returns signed expense contribution: cashback subtracts from totals, all others add
+function expAmt(t) {
+  const abs = Math.abs(parseFloat(t.amount)||0);
+  return (t.subcategory === 'Cashback' || t.category === 'Cashback') ? -abs : abs;
 }
 
 // ── L1 key: groups all non-helper groceries under one top-level label ──────
@@ -3015,7 +3021,7 @@ function avgMonthlyCat() {
   for (const t of ex) {
     const mo=(t.date||'').slice(0,7); if(!mo) continue;
     const k = dashL1Key(t);
-    byKey[k+'|'+mo] = (byKey[k+'|'+mo]||0)+Math.abs(parseFloat(t.amount)||0);
+    byKey[k+'|'+mo] = (byKey[k+'|'+mo]||0)+expAmt(t);
     months.add(mo); cats.add(k);
   }
   const mc = months.size||1;
@@ -3026,7 +3032,7 @@ function avgMonthlyCat() {
 function thisMoCat() {
   const ex=dashFilteredExpenses();
   const bc={};
-  ex.forEach(t=>{ const k=dashL1Key(t); bc[k]=(bc[k]||0)+Math.abs(parseFloat(t.amount)||0); });
+  ex.forEach(t=>{ const k=dashL1Key(t); bc[k]=(bc[k]||0)+expAmt(t); });
   return Object.entries(bc).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([cat,avg])=>({cat,avg}));
 }
 
@@ -3037,7 +3043,7 @@ function monthlyTotals() {
   const by={};
   for(const t of allExpenses()){
     const mo=(t.date||'').slice(0,7); if(!mo) continue;
-    by[mo]=(by[mo]||0)+Math.abs(parseFloat(t.amount)||0);
+    by[mo]=(by[mo]||0)+expAmt(t);
   }
   return Object.entries(by).sort((a,b)=>a[0].localeCompare(b[0])).map(([month,total])=>({month,total}));
 }
@@ -3058,16 +3064,16 @@ function momStats(){
 
 function ytdTotal(){
   const yr=new Date().getFullYear().toString();
-  return allExpenses().filter(t=>(t.date||'').startsWith(yr)).reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  return allExpenses().filter(t=>(t.date||'').startsWith(yr)).reduce((s,t)=>s+expAmt(t),0);
 }
 
 function allTimeTotal(){
-  return allExpenses().reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  return allExpenses().reduce((s,t)=>s+expAmt(t),0);
 }
 
 function avgTxSize(){
   const ex=allExpenses(); if(!ex.length) return 0;
-  return ex.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0)/ex.length;
+  return ex.reduce((s,t)=>s+expAmt(t),0)/ex.length;
 }
 
 function topCatInsights(){
@@ -3076,13 +3082,13 @@ function topCatInsights(){
   if(!thisMoEx.length) return null;
   // This month by cat
   const byCat={};
-  thisMoEx.forEach(t=>{ byCat[t.category]=(byCat[t.category]||0)+Math.abs(parseFloat(t.amount)||0); });
+  thisMoEx.forEach(t=>{ byCat[t.category]=(byCat[t.category]||0)+expAmt(t); });
   const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   const top=sorted[0];
   const moTotal=sorted.reduce((s,[,v])=>s+v,0);
   // Historical avg per cat
   const byKey={}, months=new Set();
-  for(const t of ex){ const tmo=(t.date||'').slice(0,7); if(!tmo) continue; months.add(tmo); byKey[t.category+'|'+tmo]=(byKey[t.category+'|'+tmo]||0)+Math.abs(parseFloat(t.amount)||0); }
+  for(const t of ex){ const tmo=(t.date||'').slice(0,7); if(!tmo) continue; months.add(tmo); byKey[t.category+'|'+tmo]=(byKey[t.category+'|'+tmo]||0)+expAmt(t); }
   const mc=months.size||1;
   const catAvg=c=>[...months].reduce((s,m)=>s+(byKey[c+'|'+m]||0),0)/mc;
   // Abnormal: this month > 1.5× avg (only flag if avg > 50 to avoid noise)
@@ -3094,7 +3100,7 @@ function topCatInsights(){
 
 function renderDashStats(){
   const {thisT,change,pct}=momStats();
-  const rangeTotal=dashFilteredExpenses().reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const rangeTotal=dashFilteredExpenses().reduce((s,t)=>s+expAmt(t),0);
   const ytd=ytdTotal(), allT=allTimeTotal(), avg=avgTxSize();
   const isUp=change>=0;
   const momCol=isUp?'#f0744f':'#5cc7a3';
@@ -3228,7 +3234,7 @@ function helperFoodData() {
     months.push(d.toISOString().slice(0,7));
   }
   const byMo = {}; months.forEach(m=>byMo[m]=0);
-  helpers.forEach(t=>{ const m=(t.date||'').slice(0,7); if(byMo[m]!==undefined) byMo[m]+=Math.abs(parseFloat(t.amount)||0); });
+  helpers.forEach(t=>{ const m=(t.date||'').slice(0,7); if(byMo[m]!==undefined) byMo[m]+=expAmt(t); });
   const thisMoTotal = byMo[mo]||0;
   const past = months.filter(m=>m!==mo);
   const avg = past.length ? past.reduce((s,m)=>s+byMo[m],0)/past.length : 0;
@@ -3346,7 +3352,7 @@ function dashPieKey3(t) {
 function thisMoPieDataL1() {
   const ex = dashFilteredExpenses();
   const bc = {};
-  ex.forEach(t => { const k = dashL1Key(t); bc[k] = (bc[k]||0) + Math.abs(parseFloat(t.amount)||0); });
+  ex.forEach(t => { const k = dashL1Key(t); bc[k] = (bc[k]||0) + expAmt(t); });
   const total = Object.values(bc).reduce((s,v)=>s+v, 0)||1;
   return Object.entries(bc).sort((a,b)=>b[1]-a[1])
     .map(([cat, amt]) => ({ cat, amt, pct: amt/total*100 }));
@@ -3359,7 +3365,7 @@ function avgMoPieDataL1() {
   for (const t of ex) {
     const mo=(t.date||'').slice(0,7); if(!mo) continue;
     const k = dashL1Key(t);
-    byKey[k+'||'+mo] = (byKey[k+'||'+mo]||0) + Math.abs(parseFloat(t.amount)||0);
+    byKey[k+'||'+mo] = (byKey[k+'||'+mo]||0) + expAmt(t);
     months.add(mo);
   }
   const mc = months.size||1;
@@ -3377,7 +3383,7 @@ function avgMoPieDataL1() {
 function thisMoPieData() {
   const ex = dashFilteredExpenses();
   const bc = {};
-  ex.forEach(t => { const k = dashPieKey2(t); bc[k] = (bc[k]||0) + Math.abs(parseFloat(t.amount)||0); });
+  ex.forEach(t => { const k = dashPieKey2(t); bc[k] = (bc[k]||0) + expAmt(t); });
   const total = Object.values(bc).reduce((s,v)=>s+v, 0)||1;
   return Object.entries(bc).sort((a,b)=>b[1]-a[1])
     .map(([cat, amt]) => ({ cat, amt, pct: amt/total*100 }));
@@ -3390,7 +3396,7 @@ function avgMoPieData() {
   for (const t of ex) {
     const mo=(t.date||'').slice(0,7); if(!mo) continue;
     const k = dashPieKey2(t);
-    byKey[k+'||'+mo] = (byKey[k+'||'+mo]||0) + Math.abs(parseFloat(t.amount)||0);
+    byKey[k+'||'+mo] = (byKey[k+'||'+mo]||0) + expAmt(t);
     months.add(mo);
   }
   const mc = months.size||1;
@@ -3408,7 +3414,7 @@ function avgMoPieData() {
 function thisMoLevel3Data() {
   const ex = dashFilteredExpenses();
   const bc = {};
-  ex.forEach(t => { const k = dashPieKey3(t); bc[k] = (bc[k]||0) + Math.abs(parseFloat(t.amount)||0); });
+  ex.forEach(t => { const k = dashPieKey3(t); bc[k] = (bc[k]||0) + expAmt(t); });
   const total = Object.values(bc).reduce((s,v)=>s+v, 0)||1;
   return Object.entries(bc).sort((a,b)=>b[1]-a[1])
     .map(([cat, amt]) => ({ cat, amt, pct: amt/total*100 }));
@@ -3421,7 +3427,7 @@ function avgMonthlyLevel3Data() {
   for (const t of ex) {
     const mo=(t.date||'').slice(0,7); if(!mo) continue;
     const k = dashPieKey3(t);
-    byKey[k+'||'+mo] = (byKey[k+'||'+mo]||0) + Math.abs(parseFloat(t.amount)||0);
+    byKey[k+'||'+mo] = (byKey[k+'||'+mo]||0) + expAmt(t);
     months.add(mo);
   }
   const mc = months.size||1;
@@ -3489,7 +3495,7 @@ function historicalDailyRate() {
   const ex = allExpenses().filter(t => { const mo=(t.date||'').slice(0,7); return mo && mo < currentMo; });
   if (!ex.length) return 0;
   const byMo = {};
-  ex.forEach(t => { const mo=(t.date||'').slice(0,7); if(mo) byMo[mo]=(byMo[mo]||0)+Math.abs(parseFloat(t.amount)||0); });
+  ex.forEach(t => { const mo=(t.date||'').slice(0,7); if(mo) byMo[mo]=(byMo[mo]||0)+expAmt(t); });
   const months = Object.entries(byMo);
   const totalSpend = months.reduce((s,[,v])=>s+v, 0);
   const totalDays  = months.reduce((s,[mo])=>{ const [y,m]=mo.split('-').map(Number); return s+new Date(y,m,0).getDate(); }, 0);
@@ -3509,8 +3515,8 @@ function spendingForecast() {
   // Split: already spent vs future entries already recorded
   const pastEx    = allThisMo.filter(t=>(t.date||'')<=today);
   const futureEx  = allThisMo.filter(t=>(t.date||'')>today);
-  const soFar     = pastEx.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0), 0);
-  const planned   = futureEx.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0), 0);
+  const soFar     = pastEx.reduce((s,t)=>s+expAmt(t), 0);
+  const planned   = futureEx.reduce((s,t)=>s+expAmt(t), 0);
   const committed = soFar + planned;
 
   // Days remaining that have NO entry yet → apply historical rate
@@ -3538,7 +3544,7 @@ function monthPaidByData() {
   if (!ex.length) return null;
   let andrew = 0, gloria = 0, both = 0;
   for (const t of ex) {
-    const a = Math.abs(parseFloat(t.amount)||0);
+    const a = expAmt(t);
     // BOC-account expenses are funded by Andrew — "Both" on BOC entries is for settlement only
     if (t._src === 'boc')           andrew += a;
     else if (t.paidBy === 'andrew') andrew += a;
@@ -3598,7 +3604,7 @@ function yoyData() {
     const yr = parseInt(date.slice(0,4));
     const mo = parseInt(date.slice(5,7));
     if (!byMo[yr]) continue;
-    byMo[yr][mo] = (byMo[yr][mo]||0) + Math.abs(parseFloat(t.amount)||0);
+    byMo[yr][mo] = (byMo[yr][mo]||0) + expAmt(t);
   }
   const months = [1,2,3,4,5,6,7,8,9,10,11,12];
   const MO_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -3833,7 +3839,7 @@ function breakdownDataByLevel(level) {
   const bc = {};
   ex.forEach(t => {
     const k = keyFn(t);
-    bc[k] = (bc[k]||0) + Math.abs(parseFloat(t.amount)||0);
+    bc[k] = (bc[k]||0) + expAmt(t);
   });
   return Object.entries(bc).sort((a,b)=>b[1]-a[1])
     .map(([cat, avg]) => ({ cat, avg }));
@@ -3976,7 +3982,7 @@ function getDrillBreakdownData(catKey) {
   ex.forEach(t => {
     const full = nextKeyFn(t);
     const k = full.startsWith(prefix) ? full.slice(prefix.length) : full;
-    bc[k] = (bc[k]||0) + Math.abs(parseFloat(t.amount)||0);
+    bc[k] = (bc[k]||0) + expAmt(t);
   });
   if (Object.keys(bc).length <= 1) return []; // Single subcategory — not useful to chart
   const total = Object.values(bc).reduce((s,v)=>s+v,0)||1;
@@ -4007,7 +4013,7 @@ function openDrillDown(catKey) {
     if (!ex.length) {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px;font-size:.8rem">No transactions found.</td></tr>`;
     } else {
-      const total = ex.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+      const total = ex.reduce((s,t)=>s+expAmt(t),0);
       tbody.innerHTML = ex.map(t => `<tr class="${t.paidBy==='andrew'?'tr-a':t.paidBy==='gloria'?'tr-g':'tr-b'}">
         <td>${fmtD(t.date)}</td>
         <td><span class="badge b-s">${srcLbl[t._src]||t._src||'—'}</span></td>
@@ -4306,7 +4312,7 @@ function renderGrocPie() {
   const bc = {};
   for (const t of filtered) {
     const key = _grocPieLevel === 2 ? dashPieKey2(t) : dashL1Key(t);
-    bc[key] = (bc[key]||0) + Math.abs(parseFloat(t.amount)||0);
+    bc[key] = (bc[key]||0) + expAmt(t);
   }
   const total = Object.values(bc).reduce((s,v)=>s+v, 0)||1;
   const data = Object.entries(bc).sort((a,b)=>b[1]-a[1])
@@ -4340,12 +4346,12 @@ function renderGroceries() {
 
 
   const grocUnsettled = filtered.filter(t=>!t.settled);
-  const grocExp = grocUnsettled.filter(t=>t.category!=='Cashback');
-  const grocCashback = grocUnsettled.filter(t=>t.category==='Cashback');
-  const byA  = grocExp.filter(t=>t.paidBy==='andrew').reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
-  const byG  = grocExp.filter(t=>t.paidBy==='gloria').reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
-  const grossTot = grocExp.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
-  const cbTot = grocCashback.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const grocExp = grocUnsettled.filter(t=>t.category!=='Cashback' && t.subcategory!=='Cashback');
+  const grocCashback = grocUnsettled.filter(t=>t.category==='Cashback' || t.subcategory==='Cashback');
+  const byA  = grocExp.filter(t=>t.paidBy==='andrew').reduce((s,t)=>s+expAmt(t),0);
+  const byG  = grocExp.filter(t=>t.paidBy==='gloria').reduce((s,t)=>s+expAmt(t),0);
+  const grossTot = grocExp.reduce((s,t)=>s+expAmt(t),0);
+  const cbTot = grocCashback.reduce((s,t)=>s+expAmt(t),0);
   const netTot = grossTot - cbTot;
   const grocSettledCount = filtered.filter(t=>t.settled).length;
   document.getElementById('groc-summary').innerHTML = sBar([
@@ -5363,8 +5369,6 @@ async function saveEntry() {
     if (cat === 'Interest' || cat === 'Deposit') amount =  absAmt;
     else if (cat === 'Withdrawal')               amount = -absAmt;
     else                                         amount = -absAmt;
-  } else if (mtype === 'grocery' && cat === 'Cashback') {
-    amount = Math.abs(rawAmt); // positive — cashback is a refund to the selected user
   } else {
     amount = -Math.abs(rawAmt);
   }
@@ -6347,21 +6351,21 @@ function buildMonthlyEmailHtml(month) {
   const lastDay=new Date(yr,mo,0).getDate();
   const from=`${month}-01`, to=`${month}-${String(lastDay).padStart(2,'0')}`;
   const ex=allExpenses().filter(t=>(t.date||'')>=from&&(t.date||'')<=to);
-  const total=ex.reduce((s,t)=>s+Math.abs(parseFloat(t.amount)||0),0);
+  const total=ex.reduce((s,t)=>s+expAmt(t),0);
 
   // Category breakdown (L1 hierarchy)
   const byCat={};
-  ex.forEach(t=>{ const k=dashL1Key(t); byCat[k]=(byCat[k]||0)+Math.abs(parseFloat(t.amount)||0); });
+  ex.forEach(t=>{ const k=dashL1Key(t); byCat[k]=(byCat[k]||0)+expAmt(t); });
   const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
 
   // Paid-by split
   const byPerson={Andrew:0,Gloria:0};
-  ex.forEach(t=>{ if(t.paidBy==='Andrew') byPerson.Andrew+=Math.abs(parseFloat(t.amount)||0); else if(t.paidBy==='Gloria') byPerson.Gloria+=Math.abs(parseFloat(t.amount)||0); });
+  ex.forEach(t=>{ if(t.paidBy==='Andrew') byPerson.Andrew+=expAmt(t); else if(t.paidBy==='Gloria') byPerson.Gloria+=expAmt(t); });
 
   // Abnormal spending vs historical avg
   const allEx=allExpenses();
   const byKey={},months=new Set();
-  for(const t of allEx){ const m=(t.date||'').slice(0,7); if(!m||m===month) continue; months.add(m); const k=dashL1Key(t); byKey[k+'|'+m]=(byKey[k+'|'+m]||0)+Math.abs(parseFloat(t.amount)||0); }
+  for(const t of allEx){ const m=(t.date||'').slice(0,7); if(!m||m===month) continue; months.add(m); const k=dashL1Key(t); byKey[k+'|'+m]=(byKey[k+'|'+m]||0)+expAmt(t); }
   const mc=months.size||1;
   const catAvg=c=>[...months].reduce((s,m2)=>s+(byKey[c+'|'+m2]||0),0)/mc;
   const abnormal=sorted.filter(([cat,amt])=>{ const avg=catAvg(cat); return avg>50&&amt>avg*1.5; })
@@ -6411,7 +6415,7 @@ function buildMonthlyEmailHtml(month) {
       <td style="padding:7px 0;border-bottom:1px solid #f8fafc;font-size:11px;color:#94a3b8;white-space:nowrap;width:70px;">${t.date||''}</td>
       <td style="padding:7px 8px;border-bottom:1px solid #f8fafc;font-size:12px;color:#475569;">${t.category||''}</td>
       <td style="padding:7px 8px;border-bottom:1px solid #f8fafc;font-size:12px;color:#2a2620;">${desc.length>28?desc.slice(0,28)+'…':desc}</td>
-      <td style="padding:7px 0;border-bottom:1px solid #f8fafc;font-size:12px;font-weight:700;color:#0f172a;text-align:right;white-space:nowrap;">HKD ${fmtN(Math.abs(parseFloat(t.amount)||0),false)}</td>
+      <td style="padding:7px 0;border-bottom:1px solid #f8fafc;font-size:12px;font-weight:700;color:#0f172a;text-align:right;white-space:nowrap;">HKD ${fmtN(expAmt(t),false)}</td>
     </tr>`;
   });
 
