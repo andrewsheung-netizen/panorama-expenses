@@ -5786,13 +5786,14 @@ function renderTrips() {
     const exps = (db.tripExpenses||[]).filter(e=>e.tripId===trip.id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
     const tbodyRows = exps.length ? exps.map(e=>`
-      <tr class="${e.paidBy==='andrew'?'tr-a':e.paidBy==='gloria'?'tr-g':'tr-b'}">
+      <tr class="${e.paidBy==='andrew'?'tr-a':e.paidBy==='gloria'?'tr-g':'tr-b'}${e.settled?' row-undone':''}">
         <td>${fmtD(e.date)}</td>
-        <td>${e.description||'—'}</td>
+        <td>${e.description||'—'}${e.settled?'<span class="badge b-settled" style="margin-left:6px">Settled</span>':''}</td>
         <td>${e.category||'—'}</td>
         <td class="num ${aC(e.amount)}">${fmtN(parseFloat(e.amount))}</td>
         <td>${pb(e.paidBy)}</td>
-        <td><div class="row-actions"><button class="edit-btn" aria-label="Edit expense" onclick="editTripExpense('${e.id}','${trip.id}')">✎</button><button class="del-btn" aria-label="Delete expense" onclick="delTripExpense('${e.id}')">✕</button></div></td>
+        <td>${e.notes||'—'}</td>
+        <td><div class="row-actions">${e.settled?`<button class="unsettle-row-btn" onclick="toggleTripExpenseSettle('${e.id}','${trip.id}')">↩ Unsettle</button>`:`<button class="settle-row-btn" onclick="toggleTripExpenseSettle('${e.id}','${trip.id}')">✓ Settle</button>`}<button class="edit-btn" aria-label="Edit expense" onclick="editTripExpense('${e.id}','${trip.id}')">✎</button><button class="del-btn" aria-label="Delete expense" onclick="delTripExpense('${e.id}')">✕</button></div></td>
       </tr>`).join('') :
       `<tr><td colspan="6"><div class="empty" style="padding:20px"><p>No expenses yet.</p></div></td></tr>`;
 
@@ -5850,7 +5851,7 @@ function renderTrips() {
         <button class="add-btn" style="font-size:.76rem;padding:7px 14px" onclick="openTripExpenseModal('${trip.id}')">＋ Add Expense</button>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Date</th><th>Description</th><th>Category</th><th class="th-r">Amount</th><th>Paid By</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Description</th><th>Category</th><th class="th-r">Amount</th><th>Paid By</th><th>Notes</th><th></th></tr></thead>
         <tbody>${tbodyRows}</tbody>
       </table></div>
       ${settleLogHtml}
@@ -6063,6 +6064,20 @@ function saveEditTripExpense(expId, tripId) {
   exp.date=date; exp.description=desc; exp.category=cat; exp.amount=amount; exp.paidBy=paidBy; exp.notes=notes;
   save(); closeModal(); renderTrips(); renderDashboard();
   toast('Expense updated');
+}
+
+async function toggleTripExpenseSettle(expId, tripId) {
+  const exp = (db.tripExpenses||[]).find(e=>e.id===expId);
+  if (!exp) return;
+  const desc = `${exp.category||''} — HKD ${fmtN(Math.abs(exp.amount))} on ${exp.date||''}`;
+  if (exp.settled) {
+    if (!await confirmDialog({ title:'Unsettle this expense?', message:desc, confirmText:'Unsettle' })) return;
+    delete exp.settled; delete exp.settledDate;
+  } else {
+    if (!await confirmDialog({ title:'Mark this expense as settled?', message:desc, confirmText:'Mark settled' })) return;
+    exp.settled = true; exp.settledDate = today();
+  }
+  save(); renderTrips();
 }
 
 async function delTripExpense(expId) {

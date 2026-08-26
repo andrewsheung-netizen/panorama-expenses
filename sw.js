@@ -6,7 +6,7 @@
  *   - EmailJS CDN                         → Cache-first (rarely changes)
  */
 
-const CACHE_VERSION = 'panorama-v49';
+const CACHE_VERSION = 'panorama-v50';
 
 const APP_SHELL = [
   './',
