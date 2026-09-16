@@ -3491,7 +3491,7 @@ function renderPieChart(id, data, msg) {
 // Historical daily rate from past months only (excludes current month to avoid skew)
 function historicalDailyRate() {
   const currentMo = thisMo();
-  const ex = allExpenses().filter(t => { const mo=(t.date||'').slice(0,7); return mo && mo < currentMo; });
+  const ex = allExpenses().filter(t => { const mo=(t.date||'').slice(0,7); return mo && mo < currentMo && !AVG_SKIP_MONTHS.has(mo); });
   if (!ex.length) return 0;
   const byMo = {};
   ex.forEach(t => { const mo=(t.date||'').slice(0,7); if(mo) byMo[mo]=(byMo[mo]||0)+expAmt(t); });
