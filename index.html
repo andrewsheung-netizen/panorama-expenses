@@ -2632,6 +2632,16 @@ async function initDB() {
           if (localSettle > cloudSettle && local.opening) { rec.opening = { ...rec.opening, ...local.opening }; mergedAny = true; }
         }
         db = rec;
+        // Preserve Google Drive token from local if Firebase didn't get the save
+        // (e.g. iOS PWA killed within 600ms debounce after OAuth connect)
+        if (local?._gdRefreshToken && !db._gdRefreshToken) {
+          db._gdRefreshToken = local._gdRefreshToken;
+          mergedAny = true;
+        }
+        if (local?._gdFolderId && !db._gdFolderId) {
+          db._gdFolderId = local._gdFolderId;
+          mergedAny = true;
+        }
         _cloudBaseVersion = rec._savedAt || null;
         // Enforce default cats — never let them be wiped
         if (!db.cats) db.cats = {};
@@ -4940,7 +4950,12 @@ async function handleOAuthCallback() {
     _gdAccessToken = data.access_token;
     _gdAccessTokenExpiry = Date.now() + ((data.expires_in || 3600) - 60) * 1000;
   }
-  save();
+  // Save to localStorage immediately
+  localStorage.setItem(SK, JSON.stringify(db));
+  // Flush to Firebase immediately (don't rely on 600ms debounce — PWA can be killed)
+  clearTimeout(_saveTimer);
+  _saveTimer = null;
+  await pushToCloud();
   renderSettings();
   toast('Google Drive connected! Photos will now save to your Drive.', 'success', 5000);
   switchTab('settings');
