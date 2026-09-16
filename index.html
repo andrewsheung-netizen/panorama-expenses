@@ -2411,6 +2411,15 @@ async function pushToCloud() {
     const checkRes = await fetch(FIREBASE_URL);
     if (checkRes.ok) {
       const cloudRec = (await checkRes.json()) || {};
+      // Always preserve Drive token from cloud before pushing — regardless of conflict state.
+      // This prevents a device that doesn't have the token from wiping it from Firebase.
+      if (cloudRec._gdRefreshToken && !db._gdRefreshToken) {
+        db._gdRefreshToken = cloudRec._gdRefreshToken;
+        localStorage.setItem(SK, JSON.stringify(db));
+      }
+      if (cloudRec._gdFolderId && !db._gdFolderId) {
+        db._gdFolderId = cloudRec._gdFolderId;
+      }
       if (cloudRec && cloudRec._savedAt && cloudRec._savedAt !== _cloudBaseVersion) {
         let mergedAny = false;
         // Merge tombstones so deletions propagate both ways
@@ -2447,15 +2456,6 @@ async function pushToCloud() {
               if (ce && ce.settled && !entry.settled) { entry.settled = true; entry.settledDate = ce.settledDate||null; }
             });
           }
-          mergedAny = true;
-        }
-        // Preserve Google Drive token from cloud before pushing — so we don't wipe it
-        if (cloudRec._gdRefreshToken && !db._gdRefreshToken) {
-          db._gdRefreshToken = cloudRec._gdRefreshToken;
-          mergedAny = true;
-        }
-        if (cloudRec._gdFolderId && !db._gdFolderId) {
-          db._gdFolderId = cloudRec._gdFolderId;
           mergedAny = true;
         }
         if (mergedAny) {
