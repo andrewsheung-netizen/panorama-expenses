@@ -2402,7 +2402,7 @@ function setSyncDot(state) { // 'pending'|'saving'|'saved'|'error'
 let _cloudBaseVersion = null;
 
 // Array keys that hold per-entry data (all entries have a unique `id`)
-const SYNC_ARRAYS = ['boc', 'nonBoc', 'groceries', 'settlements', 'recurring', 'activityLog'];
+const SYNC_ARRAYS = ['boc', 'nonBoc', 'groceries', 'tripExpenses', 'trips', 'settlements', 'recurring', 'activityLog'];
 
 async function pushToCloud() {
   setSyncDot('saving');
@@ -2562,7 +2562,7 @@ async function pollCloud() {
     const localSettle = (db.opening||{}).bocSettledDate||'';
     if (cloudSettle > localSettle && cloudRec.opening) {
       db.opening = { ...db.opening, ...cloudRec.opening };
-      for (const key of ['nonBoc','groceries','boc']) {
+      for (const key of ['nonBoc','groceries','boc','tripExpenses']) {
         const cm = new Map((cloudRec[key]||[]).filter(e=>e.id).map(e=>[e.id,e]));
         (db[key]||[]).forEach(e => { const ce=cm.get(e.id); if(ce&&ce.settled&&!e.settled){e.settled=true;e.settledDate=ce.settledDate||null;} });
       }
@@ -2618,7 +2618,7 @@ async function initDB() {
             if (localOnly.length) { rec[key] = [...localOnly, ...(rec[key]||[])]; mergedAny = true; }
           }
           // Preserve settled flags from local
-          for (const key of ['nonBoc', 'groceries', 'boc']) {
+          for (const key of ['nonBoc', 'groceries', 'boc', 'tripExpenses']) {
             if (!Array.isArray(local[key])) continue;
             const localMap = new Map(local[key].filter(e=>e.id).map(e=>[e.id,e]));
             for (const entry of (rec[key]||[])) {
