@@ -6479,14 +6479,16 @@ async function sendMonthlyReport(month, quiet=false) {
     return false;
   }
   if(!quiet) setEmailStatus('inf',`Sending to ${rcpts.length} recipient(s)…`);
+  // Mark as sent BEFORE the async send so a second device/tab can't pass the guard
+  if (!db.emailConfig) db.emailConfig = {};
+  db.emailConfig.lastSentMonth = month;
+  save();
   try {
     emailjs.init(cfg.publicKey);
     const {subject,body,html}=buildMonthlyEmailHtml(month);
     await Promise.all(rcpts.map(r=>emailjs.send(cfg.serviceId, cfg.templateId, {
       to_name:r.name, to_email:r.email, subject, message:body, message_html:html
     })));
-    db.emailConfig.lastSentMonth=month;
-    save();
     if(!quiet) setEmailStatus('ok',`Report sent to ${rcpts.length} recipient(s)!`);
     return true;
   } catch(e) {
@@ -6501,11 +6503,12 @@ function prevMonthKey() {
 }
 function sendReportManual()    { sendMonthlyReport(prevMonthKey()); }
 function sendReportThisMonth() { sendMonthlyReport(thisMo()); }
+let _autoReportFired = false; // session-level guard: only one auto-send per app open
 async function autoCheckMonthlyReport() {
-  // Auto-send previous month's report on first open of the new month
-  // (sends any time during the new month if not already sent — not just on the 1st)
+  if (_autoReportFired) return;
   const prev = prevMonthKey();
   if ((db.emailConfig?.lastSentMonth||'') === prev) return; // already sent this cycle
+  _autoReportFired = true; // lock before async work to prevent race conditions
   await sendMonthlyReport(prev, true); // silent — no UI status
 }
 
