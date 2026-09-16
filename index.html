@@ -2449,6 +2449,15 @@ async function pushToCloud() {
           }
           mergedAny = true;
         }
+        // Preserve Google Drive token from cloud before pushing — so we don't wipe it
+        if (cloudRec._gdRefreshToken && !db._gdRefreshToken) {
+          db._gdRefreshToken = cloudRec._gdRefreshToken;
+          mergedAny = true;
+        }
+        if (cloudRec._gdFolderId && !db._gdFolderId) {
+          db._gdFolderId = cloudRec._gdFolderId;
+          mergedAny = true;
+        }
         if (mergedAny) {
           localStorage.setItem(SK, JSON.stringify(db));
           renderAll();
@@ -2566,6 +2575,16 @@ async function pollCloud() {
         const cm = new Map((cloudRec[key]||[]).filter(e=>e.id).map(e=>[e.id,e]));
         (db[key]||[]).forEach(e => { const ce=cm.get(e.id); if(ce&&ce.settled&&!e.settled){e.settled=true;e.settledDate=ce.settledDate||null;} });
       }
+      mergedAny = true;
+    }
+    // Propagate Google Drive token from cloud to local if this device doesn't have it
+    // (e.g. the other device connected Drive after this one was already open)
+    if (cloudRec._gdRefreshToken && !db._gdRefreshToken) {
+      db._gdRefreshToken = cloudRec._gdRefreshToken;
+      mergedAny = true;
+    }
+    if (cloudRec._gdFolderId && !db._gdFolderId) {
+      db._gdFolderId = cloudRec._gdFolderId;
       mergedAny = true;
     }
     if (mergedAny) {
